@@ -1,33 +1,28 @@
-import { useState } from "react";
-import "./App.css";
-import * as React from "react";
-import Button from "@mui/material/Button";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import EventCard from "./components/EventCard";
-import EventList from "./components/EventList";
-import { Box } from "@mui/material";
+import React from "react";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import Header from "./components/Header"; // Import your Header component
+import Footer from "./components/Footer"; // Import your Footer component
+import Home from "./components/Home"; // Import your Home component
+import Login from "./components/Login"; // Import your Login component
+import Register from "./components/Register"; // Import your Register component
+import Event from "./components/Event"; // Import your Event component
+import EventDetails from "./components/EventDetails"; // Import your EventDetails component
+import EventListAdminView from "./components/EventListAdminView"; // Import the new component
 
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
-    <>
-      <Box
-        sx={{
-          minHeight: "100vh", // Ensure the layout fills the whole viewport height
-          display: "flex",
-          flexDirection: "column",
-          // gap between each element
-          gap: "16px",
-        }}
-      >
-        <Header />
-        <EventList />
-        <p>TEST</p>
-        <Footer />
-      </Box>
-    </>
+    <Router>
+      <Header />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/events" element={<Event />} />
+        <Route path="/event-details" element={<EventDetails />} />
+        <Route path="/events-list-admin-view" element={<EventListAdminView />} />  
+      </Routes>
+      <Footer />
+    </Router>
   );
 }
 
