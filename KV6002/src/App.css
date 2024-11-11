@@ -1,19 +1,20 @@
 /* src/App.css */
 body {
-  background-color: #F8E8E8;
+  background-color: #f8e8e8;
   color: #333;
-  font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
+  margin: 0px;
 }
 
 .main-content {
   text-align: center;
   padding: 2rem 1rem;
-  background-color: #D08C8C; /* Middle part background color */
+  background-color: #d08c8c; /* Middle part background color */
   margin-top: 0;
 }
 
 .header-top {
-  background-color: #7B3F3F;
+  background-color: #7b3f3f;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -22,7 +23,7 @@ body {
 }
 
 .footer {
-  background-color: #7B3F3F;
+  background-color: #7b3f3f;
   padding: 1rem;
   color: white;
   text-align: center;
