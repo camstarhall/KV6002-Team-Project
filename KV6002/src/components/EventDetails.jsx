@@ -1,49 +1,81 @@
-import React from "react";
-import { Box, Typography, Button } from "@mui/material";
-import { useLocation } from "react-router-dom";
+// src/components/EventDetails.jsx
 
-function EventDetails() {
+import React, { useState } from "react";
+import { Box, Typography, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Snackbar } from "@mui/material";
+import { useLocation, useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
+
+const EventDetails = () => {
   const location = useLocation();
-  const { event } = location.state; // Assuming event data is passed via state
+  const { event } = location.state;
+  const [open, setOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // Retrieve the logged-in user details
+  const user = JSON.parse(localStorage.getItem("loggedInUser"));
+
+  // Handle booking confirmation
+  const handleBookEvent = () => {
+    if (!user) {
+      alert("Please log in to book an event.");
+      navigate("/login"); // Redirect to login page if not logged in
+      return;
+    }
+    setOpen(true); // Open the confirmation dialog if logged in
+  };
+
+  const confirmBooking = () => {
+    const bookings = JSON.parse(localStorage.getItem("bookings")) || [];
+
+    const bookingDetails = {
+      bookingId: uuidv4(), // Unique booking ID
+      eventId: event.id,
+      eventName: event.title,
+      userName: user.fullName,
+      userEmail: user.email,
+      userPhone: user.phoneNumber,
+      status: "Booked",
+    };
+
+    bookings.push(bookingDetails);
+    localStorage.setItem("bookings", JSON.stringify(bookings));
+    setOpen(false);
+    setSnackbarOpen(true);
+  };
 
   return (
-    <Box
-      className="event-details-content"
-      sx={{
-        textAlign: "center",
-        padding: "2rem 1rem",
-        backgroundColor: "#D08C8C",
-        minHeight: "80vh",
-      }}
-    >
-      <Typography variant="h4" sx={{ color: 'black', marginBottom: '1rem' }}>
-        {event.title}
-      </Typography>
-      <img
-        src={event.img}
-        alt={event.title}
-        style={{ width: "400px", height: "auto", marginBottom: "1rem" }}
-      />
-      <Typography variant="body1" sx={{ color: 'black', marginBottom: '1rem' }}>
-        {event.description}
-      </Typography>
-      <Typography variant="h6" sx={{ color: 'black', marginBottom: '1rem' }}>
-        Organizer: ROSE CHARITY
-      </Typography>
-      <Typography variant="h6" sx={{ color: 'black', marginBottom: '1rem' }}>
-        Location: Any City
-      </Typography>
-      <Typography variant="h6" sx={{ color: 'black', marginBottom: '1rem' }}>
-        Date: XX/XX/XXXX - Time: XX:XX AM/PM
-      </Typography>
-      <Typography variant="h6" sx={{ color: 'black', marginBottom: '1rem' }}>
-        Spaces Left: XX
-      </Typography>
-      <Button variant="contained" color="primary">
-        Book Now
+    <Box sx={{ padding: "2rem", backgroundColor: "#f8e8e8", minHeight: "100vh" }}>
+      <Typography variant="h4" sx={{ color: "#7B3F3F", mb: 2 }}>{event.title}</Typography>
+      <Typography>Date: {event.date}</Typography>
+      <Typography>Location: {event.location}</Typography>
+      <Typography>Capacity: {event.capacity}</Typography>
+      <Typography>Description: {event.description}</Typography>
+
+      <Button variant="contained" color="primary" onClick={handleBookEvent} sx={{ mt: 3 }}>
+        Book Event
       </Button>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={open} onClose={() => setOpen(false)}>
+        <DialogTitle>Confirm Booking</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Are you sure you want to book this event?</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)} color="secondary">Cancel</Button>
+          <Button onClick={confirmBooking} color="primary">Confirm</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        message="Booking confirmed!"
+      />
     </Box>
   );
-}
+};
 
 export default EventDetails;

@@ -1,94 +1,98 @@
-import React from "react";
-import { Box, Typography, TextField, Button, Link } from "@mui/material";
+// src/components/Login.jsx
+
+import React, { useState } from "react";
+import { Box, Typography, TextField, Button, Snackbar, Alert } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
 function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    // Fetch stored credentials and roles
+    const adminEmail = localStorage.getItem("adminEmail");
+    const adminPassword = localStorage.getItem("adminPassword");
+    const storedLocalLeaders = JSON.parse(localStorage.getItem("localLeaders")) || [];
+    const storedNormalUsers = JSON.parse(localStorage.getItem("normalUsers")) || [];
+
+    console.log("Normal Users stored in localStorage:", storedNormalUsers);
+
+    // Check if user is an admin
+    if (email === adminEmail && password === adminPassword) {
+      localStorage.setItem("userRole", "admin");
+      navigate("/admin-dashboard");
+    }
+    // Check if user is a local leader
+    else if (
+      storedLocalLeaders.some((leader) => leader.email === email && leader.password === password)
+    ) {
+      const leader = storedLocalLeaders.find((leader) => leader.email === email);
+      if (!leader.passwordUpdated) {
+        localStorage.setItem("userRole", "localLeader");
+        localStorage.setItem("email", email); // Save email for reset-password usage
+        navigate("/reset-password"); // Force password update
+      } else {
+        localStorage.setItem("userRole", "localLeader");
+        navigate("/leader-dashboard");
+      }
+    }
+    // Check if user is a normal user
+    else if (
+      storedNormalUsers.some((user) => user.email === email && user.password === password)
+    ) {
+      console.log("Normal user login successful:", email); // Debugging line for successful login
+      localStorage.setItem("userRole", "normalUser");
+      navigate("/user-dashboard");
+    } else {
+      setErrorMessage("Invalid credentials. Please try again.");
+      console.log("Login failed: invalid credentials for", email); // Debugging line for failed login
+    }
+  };
+
   return (
     <Box
       sx={{
         display: "flex",
-        height: "100vh", // Full height
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        backgroundColor: "#D08C8C",
       }}
     >
-      {/* Left Side */}
-      <Box
-        sx={{
-          flex: 1,
-          backgroundColor: "#D08C8C",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "flex-start", // Align items to the top
-          alignItems: "center",
-          textAlign: "center",
-          paddingTop: "2rem", // Push content higher
-        }}
-      >
-        <Typography
-          variant="h2" // Increased size
-          sx={{ fontWeight: "bold", marginBottom: "0.5rem", color: "black" }} // Changed text color to black
-        >
-          ROSE CHARITY
-        </Typography>
-        <Typography
-          variant="h6" // Slightly smaller text
-          sx={{ color: "black" }} // Changed text color to black
-        >
-          You can enjoy managing and booking events with us
-        </Typography>
-      </Box>
-
-      {/* Right Side */}
-      <Box
-        sx={{
-          flex: 1,
-          backgroundColor: "#D08C8C", // Set background color to match left side
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "flex-start", // Align items to the top
-          padding: "2rem",
-        }}
-      >
-        <Typography variant="h5" sx={{ marginBottom: "1rem", color: "black" }}> {/* Changed text color to black */}
-          Login to your account
-        </Typography>
+      <Typography variant="h4" sx={{ color: "white", mb: 3 }}>Login</Typography>
+      <form onSubmit={handleSubmit} style={{ width: "300px" }}>
         <TextField
           label="Email"
-          variant="outlined"
           type="email"
           fullWidth
-          sx={{ marginBottom: "1rem" }}
+          sx={{ mb: 2 }}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
         />
         <TextField
           label="Password"
-          variant="outlined"
           type="password"
           fullWidth
-          sx={{ marginBottom: "1rem" }}
+          sx={{ mb: 2 }}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
         />
-        <Button
-          variant="contained"
-          sx={{
-            backgroundColor: "#7B3F3F", // Changed button background color
-            color: "white", // Ensure text is readable
-            "&:hover": {
-              backgroundColor: "#6a3232", // Darker shade on hover
-            },
-          }}
-          fullWidth
-        >
+        <Button type="submit" variant="contained" fullWidth sx={{ backgroundColor: "#7B3F3F", color: "white" }}>
           Login
         </Button>
-        <Link
-          href="/register"
-          sx={{
-            marginTop: "1rem",
-            textAlign: "center",
-            display: "block",
-            color: "black", // Changed link color to black
-          }}
-        >
-          If you don't have an account yet, click here to register.
-        </Link>
-      </Box>
+      </form>
+      {errorMessage && (
+        <Snackbar open autoHideDuration={6000} onClose={() => setErrorMessage("")}>
+          <Alert severity="error">{errorMessage}</Alert>
+        </Snackbar>
+      )}
     </Box>
   );
 }

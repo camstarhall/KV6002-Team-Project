@@ -1,46 +1,51 @@
-import React from "react";
-import { Grid } from "@mui/material";
-import EventCard from "./EventCard";
+// src/components/EventList.jsx
 
-const events = [
-  {
-    // obviously these would be fetched via the backend once that implementation is done
-    title: "Charity Run (Fundraiser)",
-    description: "Join us for a 5k run to support ROSE.",
-    image: "https://via.placeholder.com/300x140",
-  },
-  {
-    title: "Screening Event",
-    description: "Get your cervicval cancer screening done for free.",
-    image: "https://via.placeholder.com/300x140",
-  },
-  {
-    title: "Charity Auction",
-    description: "Bid on items to support ROSE.",
-    image: "https://via.placeholder.com/300x140",
-  },
-];
+import React, { useState, useEffect } from "react";
+import { Box, Typography, Card, CardContent, CardMedia, Button } from "@mui/material";
+import { Link } from "react-router-dom";
 
-function EventList() {
+const EventList = () => {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    // Retrieve events from localStorage
+    const storedEvents = JSON.parse(localStorage.getItem("events")) || [];
+    setEvents(storedEvents);
+  }, []);
+
   return (
-    <Grid
-      container
-      spacing={4}
-      paddingLeft={2}
-    >
-      {events.map((event, index) => (
-        <Grid
-          item
-          xs={12}
-          sm={6}
-          md={4}
-          key={index}
-        >
-          <EventCard event={event} />
-        </Grid>
-      ))}
-    </Grid>
+    <Box sx={{ padding: "2rem", backgroundColor: "#f8e8e8", minHeight: "100vh" }}>
+      <Typography variant="h4" sx={{ color: "#7B3F3F", mb: 4, textAlign: "center" }}>
+        Upcoming Events
+      </Typography>
+      {events.length === 0 ? (
+        <Typography sx={{ color: "#7B3F3F", textAlign: "center" }}>No events available</Typography>
+      ) : (
+        events.map((event) => (
+          <Card key={event.id} sx={{ display: "flex", mb: 2, backgroundColor: "#ffffff", boxShadow: 2 }}>
+            <CardMedia
+              component="img"
+              sx={{ width: 150 }}
+              image={event.imageUrl || "/placeholder.png"} // Default image if none uploaded
+              alt={event.title}
+            />
+            <CardContent>
+              <Typography variant="h5" sx={{ color: "#7B3F3F" }}>{event.title}</Typography>
+              <Typography>Date: {event.date}</Typography>
+              <Typography>Location: {event.location}</Typography>
+              <Typography>Capacity: {event.capacity}</Typography>
+              <Typography>Description: {event.description}</Typography>
+              <Link to="/event-details" state={{ event }}>
+                <Button variant="contained" color="primary" sx={{ mt: 2 }}>
+                  View Details
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ))
+      )}
+    </Box>
   );
-}
+};
 
 export default EventList;

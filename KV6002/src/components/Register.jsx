@@ -1,182 +1,148 @@
-import React, { useState, useEffect } from "react";
-import countries from "i18n-iso-countries";
-import enLocale from "i18n-iso-countries/langs/en.json";
-import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Link,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
-} from "@mui/material";
+import React, { useState } from "react";
+import { Box, Typography, TextField, Button, Select, MenuItem, FormControl, InputLabel } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
-// Register the English locale for the countries library
-countries.registerLocale(enLocale);
+function Register() {
+  const [userData, setUserData] = useState({
+    fullName: "",
+    email: "",
+    phoneNumber: "",
+    country: "",
+    employmentStatus: "Unemployed",
+    salary: "",
+    gender: "Female",
+    address: "",
+    password: "",
+  });
+  const navigate = useNavigate();
 
-const Register = () => {
-  // State for each input field
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [country, setCountry] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [sex, setSex] = useState("Male");
-  const [employment, setEmployment] = useState("Employed");
-  const [salary, setSalary] = useState("");
-  const [password, setPassword] = useState("");
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setUserData((prev) => ({ ...prev, [name]: value }));
+  };
 
-  // Get a list of all countries in English
-  const countryList = Object.entries(countries.getNames("en", { select: "official" }));
-
-  const handleSubmit = (e) => {
+  const handleRegister = (e) => {
     e.preventDefault();
-    // Handle registration logic here
+
+    const normalUsers = JSON.parse(localStorage.getItem("normalUsers")) || [];
+
+    // Check for unique email
+    const emailExists = normalUsers.some(user => user.email === userData.email);
+    if (emailExists) {
+      alert("Email already registered. Please use a different email.");
+      return;
+    }
+
+    // Add new user and save to local storage
+    normalUsers.push(userData);
+    localStorage.setItem("normalUsers", JSON.stringify(normalUsers));
+    
+    // Log users to confirm registration
+    console.log("Normal Users stored in localStorage:", normalUsers);
+
+    alert("Registration successful!");
+    navigate("/login");
   };
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        height: "100vh",
-      }}
-    >
-      {/* Left Side */}
-      <Box
-        sx={{
-          flex: 1,
-          backgroundColor: "#D08C8C",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "flex-start",
-          alignItems: "center",
-          textAlign: "center",
-          paddingTop: "2rem",
-        }}
-      >
-        <Typography variant="h2" sx={{ fontWeight: "bold", marginBottom: "0.5rem", color: "black" }}>
-          ROSE CHARITY
-        </Typography>
-        <Typography variant="h6" sx={{ color: "black" }}>
-          You can enjoy managing and booking events with us
-        </Typography>
-      </Box>
-
-      {/* Right Side */}
-      <Box
-        sx={{
-          flex: 1,
-          backgroundColor: "#D08C8C",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "flex-start",
-          padding: "2rem",
-        }}
-      >
-        <Typography variant="h5" sx={{ marginBottom: "1rem", color: "black" }}>
-          Register your account
-        </Typography>
-        <form onSubmit={handleSubmit}>
-          <TextField
-            label="Full Name"
-            variant="outlined"
-            fullWidth
-            sx={{ marginBottom: "1rem" }}
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            required
-          />
-          <TextField
-            label="Email"
-            variant="outlined"
-            type="email"
-            fullWidth
-            sx={{ marginBottom: "1rem" }}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <FormControl fullWidth sx={{ marginBottom: "1rem" }} required>
-            <InputLabel>Select your country</InputLabel>
-            <Select
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-            >
-              <MenuItem value="" disabled>
-                Select your country
-              </MenuItem>
-              {countryList.map(([code, name]) => (
-                <MenuItem key={code} value={name}>
-                  {name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label="Phone Number"
-            variant="outlined"
-            fullWidth
-            sx={{ marginBottom: "1rem" }}
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            required
-          />
-          <FormControl fullWidth sx={{ marginBottom: "1rem" }} required>
-            <InputLabel>Sex</InputLabel>
-            <Select value={sex} onChange={(e) => setSex(e.target.value)}>
-              <MenuItem value="Male">Male</MenuItem>
-              <MenuItem value="Female">Female</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl fullWidth sx={{ marginBottom: "1rem" }} required>
-            <InputLabel>Employment</InputLabel>
-            <Select value={employment} onChange={(e) => setEmployment(e.target.value)}>
-              <MenuItem value="Employed">Employed</MenuItem>
-              <MenuItem value="Unemployed">Unemployed</MenuItem>
-            </Select>
-          </FormControl>
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", backgroundColor: "#D08C8C" }}>
+      <Typography variant="h4" sx={{ mb: 2 }}>Normal User Registration</Typography>
+      <form onSubmit={handleRegister} style={{ width: "300px" }}>
+        <TextField
+          label="Full Name"
+          name="fullName"
+          fullWidth
+          required
+          value={userData.fullName}
+          onChange={handleInputChange}
+          sx={{ mb: 2 }}
+        />
+        <TextField
+          label="Email"
+          name="email"
+          type="email"
+          fullWidth
+          required
+          value={userData.email}
+          onChange={handleInputChange}
+          sx={{ mb: 2 }}
+        />
+        <TextField
+          label="Phone Number"
+          name="phoneNumber"
+          fullWidth
+          required
+          value={userData.phoneNumber}
+          onChange={handleInputChange}
+          sx={{ mb: 2 }}
+        />
+        <TextField
+          label="Country"
+          name="country"
+          fullWidth
+          required
+          value={userData.country}
+          onChange={handleInputChange}
+          sx={{ mb: 2 }}
+        />
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel>Employment Status</InputLabel>
+          <Select
+            name="employmentStatus"
+            value={userData.employmentStatus}
+            onChange={handleInputChange}
+          >
+            <MenuItem value="Employed">Employed</MenuItem>
+            <MenuItem value="Unemployed">Unemployed</MenuItem>
+          </Select>
+        </FormControl>
+        {userData.employmentStatus === "Employed" && (
           <TextField
             label="Salary"
-            variant="outlined"
+            name="salary"
             type="number"
             fullWidth
-            sx={{ marginBottom: "1rem" }}
-            value={salary}
-            onChange={(e) => setSalary(e.target.value)}
-            required
+            value={userData.salary}
+            onChange={handleInputChange}
+            sx={{ mb: 2 }}
           />
-          <TextField
-            label="Password"
-            variant="outlined"
-            type="password"
-            fullWidth
-            sx={{ marginBottom: "1rem" }}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            sx={{
-              backgroundColor: "#7B3F3F",
-              color: "white",
-              "&:hover": {
-                backgroundColor: "#6a3232",
-              },
-            }}
-            fullWidth
+        )}
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel>Gender</InputLabel>
+          <Select
+            name="gender"
+            value={userData.gender}
+            onChange={handleInputChange}
           >
-            Register
-          </Button>
-        </form>
-        <Typography sx={{ marginTop: "1rem", textAlign: "center", color: "black" }}>
-          Already have an account? <Link href="/login">Login</Link>
-        </Typography>
-      </Box>
+            <MenuItem value="Female">Female</MenuItem>
+            <MenuItem value="Male">Male</MenuItem>
+          </Select>
+        </FormControl>
+        <TextField
+          label="Address"
+          name="address"
+          fullWidth
+          required
+          value={userData.address}
+          onChange={handleInputChange}
+          sx={{ mb: 2 }}
+        />
+        <TextField
+          label="Password"
+          name="password"
+          type="password"
+          fullWidth
+          required
+          value={userData.password}
+          onChange={handleInputChange}
+          sx={{ mb: 2 }}
+        />
+        <Button type="submit" variant="contained" fullWidth sx={{ backgroundColor: "#7B3F3F", color: "white" }}>
+          Register
+        </Button>
+      </form>
     </Box>
   );
-};
+}
 
 export default Register;
