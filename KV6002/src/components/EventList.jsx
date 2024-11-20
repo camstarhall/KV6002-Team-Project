@@ -8,9 +8,18 @@ import {
   Button,
   Modal,
   TextField,
+  IconButton,
 } from "@mui/material";
-import { Link } from "react-router-dom";
-import { collection, getDocs, addDoc } from "firebase/firestore";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import {
+  collection,
+  getDocs,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
 import { db } from "../firebaseConfig";
 
 const EventList = () => {
@@ -24,8 +33,9 @@ const EventList = () => {
     Description: "",
     imageUrl: "",
   });
+  const [isEdit, setIsEdit] = useState(false);
+  const [currentEventId, setCurrentEventId] = useState(null);
 
-  // Function to fetch events from Firestore
   const fetchEvents = async () => {
     try {
       const eventsCollection = collection(db, "Events");
@@ -46,33 +56,56 @@ const EventList = () => {
     fetchEvents();
   }, []);
 
-  // Open and close modal functions
   const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {
+    setOpen(false);
+    setIsEdit(false);
+    setFormData({
+      Title: "",
+      Date: "",
+      Location: "",
+      Description: "",
+      imageUrl: "",
+    });
+    setCurrentEventId(null);
+  };
 
-  // Handle form input change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const eventsCollection = collection(db, "Events");
-      await addDoc(eventsCollection, formData);
-      setFormData({
-        Title: "",
-        Date: "",
-        Location: "",
-        Description: "",
-        imageUrl: "",
-      });
+      if (isEdit && currentEventId) {
+        const eventDoc = doc(db, "Events", currentEventId);
+        await updateDoc(eventDoc, formData);
+      } else {
+        await addDoc(eventsCollection, formData);
+      }
       handleClose();
-      fetchEvents(); // Refresh the events list
+      fetchEvents();
     } catch (error) {
-      console.error("Error adding event:", error);
+      console.error("Error saving event:", error);
+    }
+  };
+
+  const handleEdit = (event) => {
+    setFormData(event);
+    setCurrentEventId(event.id);
+    setIsEdit(true);
+    handleOpen();
+  };
+
+  const handleDelete = async (eventId) => {
+    try {
+      const eventDoc = doc(db, "Events", eventId);
+      await deleteDoc(eventDoc);
+      fetchEvents();
+    } catch (error) {
+      console.error("Error deleting event:", error);
     }
   };
 
@@ -125,24 +158,25 @@ const EventList = () => {
               </Typography>
               <Typography>Location: {event.Location}</Typography>
               <Typography>Description: {event.Description}</Typography>
-              <Link
-                to="/event-details"
-                state={{ event }}
-              >
-                <Button
-                  variant="contained"
+              <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
+                <IconButton
+                  onClick={() => handleEdit(event)}
                   color="primary"
-                  sx={{ mt: 2 }}
                 >
-                  View Details
-                </Button>
-              </Link>
+                  <EditIcon />
+                </IconButton>
+                <IconButton
+                  onClick={() => handleDelete(event.id)}
+                  color="error"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
             </CardContent>
           </Card>
         ))
       )}
 
-      {/* Fixed Button */}
       <Button
         variant="contained"
         color="primary"
@@ -160,7 +194,6 @@ const EventList = () => {
         +
       </Button>
 
-      {/* Modal Form */}
       <Modal
         open={open}
         onClose={handleClose}
@@ -184,7 +217,7 @@ const EventList = () => {
             variant="h6"
             mb={2}
           >
-            Add New Event
+            {isEdit ? "Edit Event" : "Add New Event"}
           </Typography>
           <TextField
             fullWidth
@@ -240,7 +273,7 @@ const EventList = () => {
             fullWidth
             sx={{ mt: 2 }}
           >
-            Submit
+            {isEdit ? "Update Event" : "Submit"}
           </Button>
         </Box>
       </Modal>
