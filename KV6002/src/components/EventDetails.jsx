@@ -1,79 +1,45 @@
-// src/components/EventDetails.jsx
-
-import React, { useState } from "react";
-import { Box, Typography, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Snackbar } from "@mui/material";
-import { useLocation, useNavigate } from "react-router-dom";
-import { v4 as uuidv4 } from "uuid";
+import React from "react";
+import { useLocation } from "react-router-dom";
+import { Box, Typography, Button } from "@mui/material";
 
 const EventDetails = () => {
   const location = useLocation();
-  const { event } = location.state;
-  const [open, setOpen] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const navigate = useNavigate();
+  const event = location.state?.event;
 
-  // Retrieve the logged-in user details
-  const user = JSON.parse(localStorage.getItem("loggedInUser"));
-
-  // Handle booking confirmation
-  const handleBookEvent = () => {
-    if (!user) {
-      alert("Please log in to book an event.");
-      navigate("/login"); // Redirect to login page if not logged in
-      return;
-    }
-    setOpen(true); // Open the confirmation dialog if logged in
-  };
-
-  const confirmBooking = () => {
-    const bookings = JSON.parse(localStorage.getItem("bookings")) || [];
-
-    const bookingDetails = {
-      bookingId: uuidv4(), // Unique booking ID
-      eventId: event.id,
-      eventName: event.title,
-      userName: user.fullName,
-      userEmail: user.email,
-      userPhone: user.phoneNumber,
-      status: "Booked",
-    };
-
-    bookings.push(bookingDetails);
-    localStorage.setItem("bookings", JSON.stringify(bookings));
-    setOpen(false);
-    setSnackbarOpen(true);
-  };
+  if (!event) {
+    return (
+      <Typography sx={{ textAlign: "center", mt: 4 }}>
+        Event details not found.
+      </Typography>
+    );
+  }
 
   return (
-    <Box sx={{ padding: "2rem", backgroundColor: "#f8e8e8", minHeight: "100vh" }}>
-      <Typography variant="h4" sx={{ color: "#7B3F3F", mb: 2 }}>{event.title}</Typography>
-      <Typography>Date: {event.date}</Typography>
-      <Typography>Location: {event.location}</Typography>
-      <Typography>Capacity: {event.capacity}</Typography>
-      <Typography>Description: {event.description}</Typography>
-
-      <Button variant="contained" color="primary" onClick={handleBookEvent} sx={{ mt: 3 }}>
-        Book Event
-      </Button>
-
-      {/* Confirmation Dialog */}
-      <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogTitle>Confirm Booking</DialogTitle>
-        <DialogContent>
-          <DialogContentText>Are you sure you want to book this event?</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)} color="secondary">Cancel</Button>
-          <Button onClick={confirmBooking} color="primary">Confirm</Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarOpen(false)}
-        message="Booking confirmed!"
+    <Box
+      sx={{ padding: "2rem", backgroundColor: "#f8e8e8", minHeight: "100vh" }}
+    >
+      <Typography
+        variant="h4"
+        sx={{ color: "#7B3F3F", mb: 4 }}
+      >
+        {event.Title}
+      </Typography>
+      <Typography>Date: {new Date(event.Date).toLocaleDateString()}</Typography>
+      <Typography>Location: {event.Location}</Typography>
+      <Typography>Description: {event.Description}</Typography>
+      <Box
+        component="img"
+        src={event.imageUrl || "/placeholder.png"}
+        alt={event.Title}
+        sx={{ mt: 2, width: "100%", maxHeight: 300 }}
       />
+      <Button
+        variant="contained"
+        color="primary"
+        sx={{ mt: 4 }}
+      >
+        Sign Up
+      </Button>
     </Box>
   );
 };
