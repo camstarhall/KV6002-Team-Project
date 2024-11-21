@@ -1,19 +1,88 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Grid } from "@mui/material";
-import img1 from "../assets/img1.jpg";
-import img2 from "../assets/img2.jpg";
-import img3 from "../assets/img3.jpg";
+import { collection, getDocs, query, limit } from "firebase/firestore";
+import { db } from "../../firebaseConfig";
+import EventCard from "./Events/EventCard";
 
 function Home() {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch the first 3 events from Firestore
+  const fetchEvents = async () => {
+    try {
+      const eventsCollection = collection(db, "Events");
+      const eventsQuery = query(eventsCollection, limit(3)); // Limit to 3 events
+      const eventsSnapshot = await getDocs(eventsQuery);
+      const eventsData = eventsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setEvents(eventsData);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
   return (
-    <Box sx={{ textAlign: "center", padding: "2rem", backgroundColor: "#D08C8C" }}>
-      <Grid container spacing={2} justifyContent="center">
-        <Grid item xs={12} sm={4}><img src={img1} alt="Image 1" style={{ maxWidth: "100%" }} /></Grid>
-        <Grid item xs={12} sm={4}><img src={img2} alt="Image 2" style={{ maxWidth: "100%" }} /></Grid>
-        <Grid item xs={12} sm={4}><img src={img3} alt="Image 3" style={{ maxWidth: "100%" }} /></Grid>
+    <Box
+      sx={{ textAlign: "center", padding: "2rem", backgroundColor: "#D08C8C" }}
+    >
+      {/* Grid for Event Cards */}
+      <Grid
+        container
+        spacing={3}
+        justifyContent="center"
+        sx={{ mb: 4 }}
+      >
+        {loading ? (
+          <Typography
+            variant="body1"
+            sx={{ mt: 3, color: "black" }}
+          >
+            Loading events...
+          </Typography>
+        ) : events.length > 0 ? (
+          events.map((event) => (
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={4}
+              key={event.id}
+            >
+              <EventCard
+                event={{
+                  title: event.Title,
+                  date: event.Date,
+                  description: event.Description,
+                  imageUrl: event.imageUrl,
+                }}
+              />
+            </Grid>
+          ))
+        ) : (
+          <Typography
+            variant="body1"
+            sx={{ mt: 3, color: "black" }}
+          >
+            No events available at the moment.
+          </Typography>
+        )}
       </Grid>
-      <Typography variant="body1" sx={{ mt: 3, color: "black" }}>
-        Join hands with us in bringing positive changes to the community. Every step makes a difference!
+
+      <Typography
+        variant="body1"
+        sx={{ mt: 3, color: "black" }}
+      >
+        Join hands with us in bringing positive changes to the community. Every
+        step makes a difference!
       </Typography>
     </Box>
   );
