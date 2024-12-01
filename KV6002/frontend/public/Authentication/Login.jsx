@@ -1,55 +1,50 @@
-// src/components/Login.jsx
-
 import React, { useState } from "react";
-import { Box, Typography, TextField, Button, Snackbar, Alert } from "@mui/material";
+import { Box, Typography, TextField, Button, CircularProgress } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../../firebaseConfig";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setErrorMessage("");
 
-    // Fetch stored credentials and roles
-    const adminEmail = localStorage.getItem("adminEmail");
-    const adminPassword = localStorage.getItem("adminPassword");
-    const storedLocalLeaders = JSON.parse(localStorage.getItem("localLeaders")) || [];
-    const storedNormalUsers = JSON.parse(localStorage.getItem("normalUsers")) || [];
+    try {
+      const auth = getAuth();
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-    console.log("Normal Users stored in localStorage:", storedNormalUsers);
+      // Verify user role in Firestore
+      const userDocRef = doc(db, "Users", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
 
-    // Check if user is an admin
-    if (email === adminEmail && password === adminPassword) {
-      localStorage.setItem("userRole", "admin");
-      navigate("/admin-dashboard");
-    }
-    // Check if user is a local leader
-    else if (
-      storedLocalLeaders.some((leader) => leader.email === email && leader.password === password)
-    ) {
-      const leader = storedLocalLeaders.find((leader) => leader.email === email);
-      if (!leader.passwordUpdated) {
-        localStorage.setItem("userRole", "localLeader");
-        localStorage.setItem("email", email); // Save email for reset-password usage
-        navigate("/reset-password"); // Force password update
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData.role === "Admin") {
+          navigate("/admin-dashboard");
+        } else {
+          setErrorMessage("Access denied. You are not an admin.");
+        }
       } else {
-        localStorage.setItem("userRole", "localLeader");
-        navigate("/leader-dashboard");
+        setErrorMessage("User record not found in the database.");
       }
-    }
-    // Check if user is a normal user
-    else if (
-      storedNormalUsers.some((user) => user.email === email && user.password === password)
-    ) {
-      console.log("Normal user login successful:", email); // Debugging line for successful login
-      localStorage.setItem("userRole", "normalUser");
-      navigate("/user-dashboard");
-    } else {
-      setErrorMessage("Invalid credentials. Please try again.");
-      console.log("Login failed: invalid credentials for", email); // Debugging line for failed login
+    } catch (error) {
+      console.error("Login error:", error.message);
+      setErrorMessage(
+        error.message.includes("auth/invalid-credential")
+          ? "Invalid email or password."
+          : "Login failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,38 +56,47 @@ function Login() {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "100vh",
-        backgroundColor: "#D08C8C",
+        backgroundColor: "#f8e8e8",
+        padding: "2rem",
       }}
     >
-      <Typography variant="h4" sx={{ color: "white", mb: 3 }}>Login</Typography>
+      <Typography variant="h4" sx={{ color: "#7B3F3F", mb: 3 }}>
+        Admin Login
+      </Typography>
       <form onSubmit={handleSubmit} style={{ width: "300px" }}>
         <TextField
           label="Email"
           type="email"
           fullWidth
-          sx={{ mb: 2 }}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          sx={{ mb: 2 }}
           required
         />
         <TextField
           label="Password"
           type="password"
           fullWidth
-          sx={{ mb: 2 }}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          sx={{ mb: 2 }}
           required
         />
-        <Button type="submit" variant="contained" fullWidth sx={{ backgroundColor: "#7B3F3F", color: "white" }}>
-          Login
+        {errorMessage && (
+          <Typography variant="body2" sx={{ color: "red", mb: 2 }}>
+            {errorMessage}
+          </Typography>
+        )}
+        <Button
+          type="submit"
+          variant="contained"
+          fullWidth
+          disabled={loading}
+          sx={{ backgroundColor: "#7B3F3F", color: "white" }}
+        >
+          {loading ? <CircularProgress size={24} color="inherit" /> : "Login"}
         </Button>
       </form>
-      {errorMessage && (
-        <Snackbar open autoHideDuration={6000} onClose={() => setErrorMessage("")}>
-          <Alert severity="error">{errorMessage}</Alert>
-        </Snackbar>
-      )}
     </Box>
   );
 }

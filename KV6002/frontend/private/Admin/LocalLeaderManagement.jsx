@@ -1,50 +1,89 @@
-// src/components/LocalLeaderManagement.jsx
-
 import React, { useState, useEffect } from "react";
-import { Box, Typography, TextField, Button, List, ListItem, ListItemText, IconButton, MenuItem, Select, FormControl, InputLabel, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+} from "@mui/material";
 import { Delete, Edit } from "@mui/icons-material";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { db } from "../../../firebaseConfig";
 
 const LocalLeaderManagement = () => {
-  const [leaders, setLeaders] = useState(JSON.parse(localStorage.getItem("localLeaders")) || []);
+  const [leaders, setLeaders] = useState([]);
   const [leaderData, setLeaderData] = useState({
     fullName: "",
+    dateOfBirth: "",
     email: "",
     phone: "",
     gender: "Female",
-    address: "",
-    password: ""
+    password: "",
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editingLeaderId, setEditingLeaderId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [leaderToDelete, setLeaderToDelete] = useState(null);
 
+  // Fetch leaders from Firestore
   useEffect(() => {
-    const storedLeaders = JSON.parse(localStorage.getItem("localLeaders")) || [];
-    setLeaders(storedLeaders);
+    fetchLeaders();
   }, []);
 
-  const handleAddLeader = () => {
-    if (!leaderData.fullName || !leaderData.email || !leaderData.phone || !leaderData.address || !leaderData.password) {
+  const fetchLeaders = async () => {
+    setLoading(true);
+    try {
+      const leadersCollection = collection(db, "LocalLeaders");
+      const leaderDocs = await getDocs(leadersCollection);
+      const leaderData = leaderDocs.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setLeaders(leaderData);
+    } catch (error) {
+      console.error("Error fetching leaders:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddLeader = async () => {
+    if (
+      !leaderData.fullName ||
+      !leaderData.email ||
+      !leaderData.phone ||
+      !leaderData.dateOfBirth ||
+      !leaderData.password
+    ) {
       alert("Please fill out all required fields.");
       return;
     }
 
-    const newLeaders = [...leaders, { ...leaderData, id: new Date().getTime() }];
-    setLeaders(newLeaders);
-    localStorage.setItem("localLeaders", JSON.stringify(newLeaders));
-    setLeaderData({
-      fullName: "",
-      email: "",
-      phone: "",
-      gender: "Female",
-      address: "",
-      password: ""
-    });
-  };
-
-  const handleDeleteLeader = (id) => {
-    const updatedLeaders = leaders.filter((leader) => leader.id !== id);
-    setLeaders(updatedLeaders);
-    localStorage.setItem("localLeaders", JSON.stringify(updatedLeaders));
+    try {
+      const leadersCollection = collection(db, "LocalLeaders");
+      await addDoc(leadersCollection, leaderData);
+      fetchLeaders();
+      setLeaderData({
+        fullName: "",
+        dateOfBirth: "",
+        email: "",
+        phone: "",
+        gender: "Female",
+        password: "",
+      });
+    } catch (error) {
+      console.error("Error adding leader:", error);
+    }
   };
 
   const handleEditLeader = (leader) => {
@@ -53,22 +92,50 @@ const LocalLeaderManagement = () => {
     setEditingLeaderId(leader.id);
   };
 
-  const handleSaveEdit = () => {
-    const updatedLeaders = leaders.map((leader) =>
-      leader.id === editingLeaderId ? { ...leader, ...leaderData } : leader
-    );
-    setLeaders(updatedLeaders);
-    localStorage.setItem("localLeaders", JSON.stringify(updatedLeaders));
-    setIsEditing(false);
-    setEditingLeaderId(null);
-    setLeaderData({
-      fullName: "",
-      email: "",
-      phone: "",
-      gender: "Female",
-      address: "",
-      password: ""
-    });
+  const handleSaveEdit = async () => {
+    if (!editingLeaderId) return;
+
+    try {
+      const leaderDoc = doc(db, "LocalLeaders", editingLeaderId);
+      await updateDoc(leaderDoc, leaderData);
+      fetchLeaders();
+      setIsEditing(false);
+      setEditingLeaderId(null);
+      setLeaderData({
+        fullName: "",
+        dateOfBirth: "",
+        email: "",
+        phone: "",
+        gender: "Female",
+        password: "",
+      });
+    } catch (error) {
+      console.error("Error updating leader:", error);
+    }
+  };
+
+  const handleOpenDeleteDialog = (leader) => {
+    setLeaderToDelete(leader);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setLeaderToDelete(null);
+  };
+
+  const handleDeleteLeader = async () => {
+    if (!leaderToDelete) return;
+
+    try {
+      const leaderDoc = doc(db, "LocalLeaders", leaderToDelete.id);
+      await deleteDoc(leaderDoc);
+      fetchLeaders();
+    } catch (error) {
+      console.error("Error deleting leader:", error);
+    } finally {
+      handleCloseDeleteDialog();
+    }
   };
 
   const handleInputChange = (e) => {
@@ -78,7 +145,10 @@ const LocalLeaderManagement = () => {
 
   return (
     <Box sx={{ backgroundColor: "#f8e8e8", padding: "1rem", borderRadius: "8px" }}>
-      <Typography variant="h5" sx={{ color: "#7B3F3F", mb: 2 }}>Manage Local Leaders</Typography>
+      <Typography variant="h5" sx={{ color: "#7B3F3F", mb: 2 }}>
+        Manage Local Leaders
+      </Typography>
+
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
         <TextField
           label="Full Name"
@@ -86,6 +156,15 @@ const LocalLeaderManagement = () => {
           value={leaderData.fullName}
           onChange={handleInputChange}
           fullWidth
+        />
+        <TextField
+          label="Date of Birth"
+          name="dateOfBirth"
+          type="date"
+          value={leaderData.dateOfBirth}
+          onChange={handleInputChange}
+          fullWidth
+          InputLabelProps={{ shrink: true }}
         />
         <TextField
           label="Email"
@@ -104,24 +183,13 @@ const LocalLeaderManagement = () => {
         />
         <FormControl fullWidth>
           <InputLabel>Gender</InputLabel>
-          <Select
-            name="gender"
-            value={leaderData.gender}
-            onChange={handleInputChange}
-          >
+          <Select name="gender" value={leaderData.gender} onChange={handleInputChange}>
             <MenuItem value="Female">Female</MenuItem>
             <MenuItem value="Male">Male</MenuItem>
           </Select>
         </FormControl>
         <TextField
-          label="Home Address"
-          name="address"
-          value={leaderData.address}
-          onChange={handleInputChange}
-          fullWidth
-        />
-        <TextField
-          label="Password"
+          label="Temporary Password"
           name="password"
           type="password"
           value={leaderData.password}
@@ -151,81 +219,41 @@ const LocalLeaderManagement = () => {
             }}
           >
             <ListItemText
-              primary={
-                <Typography sx={{ color: "#7B3F3F" }}>{leader.fullName}</Typography>
-              }
+              primary={<Typography sx={{ color: "#7B3F3F" }}>{leader.fullName}</Typography>}
               secondary={
                 <>
                   <Typography sx={{ color: "black" }}>Email: {leader.email}</Typography>
                   <Typography sx={{ color: "black" }}>Phone: {leader.phone}</Typography>
                   <Typography sx={{ color: "black" }}>Gender: {leader.gender}</Typography>
-                  <Typography sx={{ color: "black" }}>Address: {leader.address}</Typography>
+                  <Typography sx={{ color: "black" }}>Date of Birth: {leader.dateOfBirth}</Typography>
                 </>
               }
             />
             <IconButton color="primary" onClick={() => handleEditLeader(leader)}>
               <Edit />
             </IconButton>
-            <IconButton color="error" onClick={() => handleDeleteLeader(leader.id)}>
+            <IconButton color="error" onClick={() => handleOpenDeleteDialog(leader)}>
               <Delete />
             </IconButton>
           </ListItem>
         ))}
       </List>
 
-      {/* Edit Dialog */}
-      <Dialog open={isEditing} onClose={() => setIsEditing(false)}>
-        <DialogTitle>Edit Local Leader</DialogTitle>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
-          <TextField
-            label="Full Name"
-            name="fullName"
-            value={leaderData.fullName}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Email"
-            name="email"
-            type="email"
-            value={leaderData.email}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Phone"
-            name="phone"
-            value={leaderData.phone}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Gender</InputLabel>
-            <Select
-              name="gender"
-              value={leaderData.gender}
-              onChange={handleInputChange}
-            >
-              <MenuItem value="Female">Female</MenuItem>
-              <MenuItem value="Male">Male</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField
-            label="Home Address"
-            name="address"
-            value={leaderData.address}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
+          <DialogContentText>
+            Are you sure you want to delete local leader "{leaderToDelete?.fullName}"? This action
+            cannot be undone.
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsEditing(false)} color="secondary">Cancel</Button>
-          <Button onClick={handleSaveEdit} variant="contained" sx={{ backgroundColor: "#7B3F3F", color: "white" }}>
-            Save
+          <Button onClick={handleCloseDeleteDialog} color="secondary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteLeader} color="error">
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

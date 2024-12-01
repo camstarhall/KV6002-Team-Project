@@ -1,22 +1,12 @@
-// src/components/Header.jsx
-
 import React from "react";
 import { Box, Typography, Button } from "@mui/material";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import charityLogo from "../assets/Rose_logo.png";
 
 function Header() {
-  const navigate = useNavigate();
-  const isLoggedIn = !!localStorage.getItem("userRole");
-
-  const handleLogout = () => {
-    localStorage.removeItem("userRole"); // Clear the stored user role
-    localStorage.removeItem("email"); // Clear stored email if used
-    navigate("/login");
-  };
-
   return (
     <Box>
+      {/* Top bar with slogan and language button */}
       <Box
         sx={{
           backgroundColor: "#7B3F3F",
@@ -26,20 +16,15 @@ function Header() {
           padding: "1rem",
         }}
       >
-        <Typography
-          variant="h6"
-          sx={{ color: "white", textAlign: "center", flexGrow: 1 }}
-        >
+        <Typography variant="h6" sx={{ color: "white" }}>
           Together we can make a difference
         </Typography>
-        <Button
-          variant="contained"
-          sx={{ backgroundColor: "green", color: "white" }}
-        >
+        <Button variant="contained" sx={{ backgroundColor: "green", color: "white" }}>
           Language
         </Button>
       </Box>
 
+      {/* Navigation bar */}
       <Box
         sx={{
           backgroundColor: "#D08C8C",
@@ -51,95 +36,48 @@ function Header() {
         <img
           src={charityLogo}
           alt="Charity Logo"
-          style={{ width: "80px", marginRight: "auto" }}
+          style={{ width: "80px", marginRight: "1rem" }}
         />
-        <nav style={{ display: "flex", justifyContent: "center", flexGrow: 1 }}>
-          <Link
-            to="/"
-            style={{
-              margin: "0 1rem",
-              color: "black",
-              fontWeight: "bold",
-              textDecoration: "none",
-            }}
-          >
+        <nav
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            width: "100%", // Ensures nav links are centered
+          }}
+        >
+          <Link to="/" style={navLinkStyle}>
             Home
           </Link>
-          <Link
-            to="/events"
-            style={{
-              margin: "0 1rem",
-              color: "black",
-              fontWeight: "bold",
-              textDecoration: "none",
-            }}
-          >
+          <Link to="/events" style={navLinkStyle}>
             Events
           </Link>
-          <Link
-            to="/about"
-            style={{
-              margin: "0 1rem",
-              color: "black",
-              fontWeight: "bold",
-              textDecoration: "none",
-            }}
-          >
-            About Us
-          </Link>
-          <Link
-            to="/feedback"
-            style={{
-              margin: "0 1rem",
-              color: "black",
-              fontWeight: "bold",
-              textDecoration: "none",
-            }}
-          >
+          <Link to="/feedback" style={navLinkStyle}>
             Feedback
           </Link>
-          {!isLoggedIn ? (
-            <>
-              <Link
-                to="/register"
-                style={{
-                  margin: "0 1rem",
-                  color: "black",
-                  fontWeight: "bold",
-                  textDecoration: "none",
-                }}
-              >
-                Register
-              </Link>
-              <Link
-                to="/login"
-                style={{
-                  margin: "0 1rem",
-                  color: "black",
-                  fontWeight: "bold",
-                  textDecoration: "none",
-                }}
-              >
-                Login
-              </Link>
-            </>
-          ) : (
-            <Button
-              onClick={handleLogout}
-              variant="contained"
-              sx={{
-                backgroundColor: "#7B3F3F",
-                color: "white",
-                marginLeft: "1rem",
-              }}
-            >
-              Logout
-            </Button>
-          )}
+          <Link to="/admin-dashboard" style={navLinkStyle}>
+            Admin Dashboard
+          </Link>
+          <Link to="/leader-dashboard" style={navLinkStyle}>
+            Local Leader Dashboard
+          </Link>
+          <Link to="/staff-dashboard" style={navLinkStyle}>
+            Staff Dashboard
+          </Link>
+          <Link to="/login" style={navLinkStyle}>
+            Login
+          </Link>
         </nav>
       </Box>
     </Box>
   );
 }
+
+const navLinkStyle = {
+  margin: "0 1.5rem",
+  color: "black",
+  fontWeight: "bold",
+  textDecoration: "none",
+};
 
 export default Header;
