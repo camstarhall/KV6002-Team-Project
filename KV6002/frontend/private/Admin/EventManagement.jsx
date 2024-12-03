@@ -431,7 +431,7 @@ function EventManagement() {
               component="label"
               disabled={uploading}
             >
-              {uploading ? "Uploading..." : "Upload Image"}
+              {uploading ? "Uploading..." : "Upload Image FIX THIS"}
               <input
                 type="file"
                 accept="image/*"
