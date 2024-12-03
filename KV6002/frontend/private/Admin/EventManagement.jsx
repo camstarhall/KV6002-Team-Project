@@ -252,15 +252,20 @@ function EventManagement() {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
           console.log("Download URL obtained:", downloadURL);
 
-          // Update the formData with the image URL
-          setFormData((prevData) => ({
-            ...prevData,
-            imageURL: downloadURL,
-          }));
+          // Ensure downloadURL is a plain string without extra quotes
+          if (typeof downloadURL === "string" && !/^".*"$/.test(downloadURL)) {
+            setFormData((prevData) => ({
+              ...prevData,
+              imageURL: downloadURL,
+            }));
 
-          // Set image preview
-          setImagePreview(downloadURL);
-          console.log("Image preview set.");
+            // Set image preview
+            setImagePreview(downloadURL);
+            console.log("Image preview set.");
+          } else {
+            console.error("downloadURL has unexpected format:", downloadURL);
+            alert("Failed to retrieve valid image URL.");
+          }
         } catch (error) {
           console.error("Error getting download URL:", error);
           alert("Failed to retrieve image URL.");
@@ -431,7 +436,7 @@ function EventManagement() {
               component="label"
               disabled={uploading}
             >
-              {uploading ? "Uploading..." : "Upload Image FIX THIS"}
+              {uploading ? "Uploading..." : "Upload Image FIXED?"}
               <input
                 type="file"
                 accept="image/*"

@@ -9,7 +9,14 @@ import {
   Card,
   CardContent,
 } from "@mui/material";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 import BookingForm from "./BookingForm"; // Import BookingForm
 
@@ -37,6 +44,7 @@ const EventDetails = () => {
       console.error("Error fetching event details:", error);
     } finally {
       setLoading(false);
+      console.log("Event details loaded: ", event);
     }
   };
 
@@ -63,7 +71,10 @@ const EventDetails = () => {
     return (
       <Box sx={{ textAlign: "center", mt: 4 }}>
         <CircularProgress />
-        <Typography variant="body1" sx={{ mt: 2 }}>
+        <Typography
+          variant="body1"
+          sx={{ mt: 2 }}
+        >
           Loading event details...
         </Typography>
       </Box>
@@ -90,8 +101,16 @@ const EventDetails = () => {
       }}
     >
       {!showBookingForm ? (
-        <Grid container spacing={4} justifyContent="center">
-          <Grid item xs={12} md={6}>
+        <Grid
+          container
+          spacing={4}
+          justifyContent="center"
+        >
+          <Grid
+            item
+            xs={12}
+            md={6}
+          >
             <Card
               sx={{
                 boxShadow: 3,
@@ -113,14 +132,17 @@ const EventDetails = () => {
                 </Typography>
 
                 <Typography sx={{ mb: 2, color: "#555" }}>
-                  <strong>Date:</strong> {new Date(event.Date).toLocaleDateString()}
+                  <strong>Date:</strong>{" "}
+                  {new Date(event.Date).toLocaleDateString()}
                 </Typography>
                 <Typography sx={{ mb: 2, color: "#555" }}>
                   <strong>Location:</strong> {event.Location}
                 </Typography>
                 <Typography sx={{ mb: 2, color: "#555" }}>
                   <strong>Spaces Left:</strong>{" "}
-                  {isFullyBooked ? "No spaces left" : `${spacesLeft} spaces available`}
+                  {isFullyBooked
+                    ? "No spaces left"
+                    : `${spacesLeft} spaces available`}
                 </Typography>
                 <Typography sx={{ mb: 3, color: "#555" }}>
                   <strong>Description:</strong> {event.Description}
