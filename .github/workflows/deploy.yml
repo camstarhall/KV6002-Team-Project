@@ -16,15 +16,21 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "18" # Specify the Node.js version you prefer
+          node-version: "18" # Ensure this matches your project's Node.js version
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          cd KV6002
+          npm install
 
       - name: Build Project
-        run: npm run build
+        run: |
+          cd KV6002
+          npm run build
 
       - name: Deploy to Firebase
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: firebase deploy --only hosting
+        run: |
+          cd KV6002
+          firebase deploy --only hosting
