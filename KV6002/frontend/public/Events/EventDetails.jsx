@@ -150,7 +150,7 @@ const EventDetails = () => {
 
                 <Box
                   component="img"
-                  src={event.imageUrl || "/placeholder.png"}
+                  src={event.imageURL || "/placeholder.png"}
                   alt={event.Title}
                   sx={{
                     width: "100%",

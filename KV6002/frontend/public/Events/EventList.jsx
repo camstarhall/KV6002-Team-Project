@@ -37,7 +37,9 @@ const EventList = () => {
   }, []);
 
   return (
-    <Box sx={{ padding: "2rem", backgroundColor: "#f8e8e8", minHeight: "100vh" }}>
+    <Box
+      sx={{ padding: "2rem", backgroundColor: "#f8e8e8", minHeight: "100vh" }}
+    >
       <Typography
         variant="h4"
         sx={{ color: "#7B3F3F", mb: 4, textAlign: "center" }}
@@ -66,7 +68,7 @@ const EventList = () => {
             <CardMedia
               component="img"
               sx={{ width: 150 }}
-              image={event.imageUrl || "/placeholder.png"}
+              image={event.imageURL || "/placeholder.png"}
               alt={event.Title}
             />
             <CardContent>
@@ -76,7 +78,9 @@ const EventList = () => {
               >
                 {event.Title}
               </Typography>
-              <Typography>Date: {new Date(event.Date).toLocaleDateString()}</Typography>
+              <Typography>
+                Date: {new Date(event.Date).toLocaleDateString()}
+              </Typography>
               <Typography>Location: {event.Location}</Typography>
               <Box sx={{ mt: 2 }}>
                 <Link
