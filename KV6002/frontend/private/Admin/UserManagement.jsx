@@ -132,6 +132,11 @@ const UserManagement = () => {
                   <Typography sx={{ color: "black" }}>Email: {user.email}</Typography>
                   <Typography sx={{ color: "black" }}>Phone: {user.phone}</Typography>
                   <Typography sx={{ color: "black" }}>Gender: {user.gender}</Typography>
+                  <Typography sx={{ color: "black" }}>
+                    Date of Birth: {user.dateOfBirth
+                      ? new Date(user.dateOfBirth).toLocaleDateString()
+                      : "N/A"}
+                  </Typography>
                   <Typography sx={{ color: "black" }}>Address: {user.address}</Typography>
                   <Typography sx={{ color: "black" }}>
                     Employment Status: {user.employmentStatus}
@@ -196,6 +201,16 @@ const UserManagement = () => {
             value={editUser?.phone || ""}
             onChange={handleInputChange}
             fullWidth
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Date of Birth"
+            name="dateOfBirth"
+            type="date"
+            value={editUser?.dateOfBirth || ""}
+            onChange={handleInputChange}
+            fullWidth
+            InputLabelProps={{ shrink: true }}
             sx={{ mb: 2 }}
           />
           <TextField

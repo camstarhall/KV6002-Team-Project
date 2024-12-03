@@ -9,6 +9,9 @@ import {
   TableHead,
   TableRow,
   Paper,
+  MenuItem,
+  Select,
+  FormControl,
   Button,
   Dialog,
   DialogActions,
@@ -21,26 +24,50 @@ import { db } from "../../../firebaseConfig";
 
 const RSVPReport = () => {
   const [bookings, setBookings] = useState([]);
+  const [filteredBookings, setFilteredBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalBookings, setTotalBookings] = useState(0);
   const [totalCancellations, setTotalCancellations] = useState(0);
-  const [totalAttendees, setTotalAttendees] = useState(0); // Count of Attendees
+  const [totalAttendees, setTotalAttendees] = useState(0);
+  const [events, setEvents] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState("All");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
 
   useEffect(() => {
     fetchBookings();
+    fetchEvents();
   }, []);
+
+  const fetchEvents = async () => {
+    try {
+      const eventsCollection = collection(db, "Events");
+      const eventsSnapshot = await getDocs(eventsCollection);
+      const eventsData = eventsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setEvents([{ id: "All", Title: "All Events" }, ...eventsData]);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    }
+  };
 
   const fetchBookings = async () => {
     try {
       const bookingsCollection = collection(db, "Bookings");
       const bookingsSnapshot = await getDocs(bookingsCollection);
 
-      const bookingsData = bookingsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const bookingsData = bookingsSnapshot.docs
+        .map((doc) => {
+          const data = doc.data();
+          if (!data.eventId || !data.userId) {
+            console.warn(`Booking ${doc.id} is missing eventId or userId.`);
+            return null; // Skip invalid bookings
+          }
+          return { id: doc.id, ...data };
+        })
+        .filter(Boolean); // Remove null values
 
       const enrichedBookings = await Promise.all(
         bookingsData.map(async (booking) => {
@@ -51,40 +78,59 @@ const RSVPReport = () => {
           const userData = userDoc.exists() ? userDoc.data() : {};
 
           return {
+            ...booking,
             bookingId: booking.id,
-            bookingStatus: booking.status || "N/A",
-            bookingDate: booking.bookingDate || "N/A",
             eventTitle: eventData.Title || "N/A",
             eventDate: eventData.Date || "N/A",
             eventLocation: eventData.Location || "N/A",
             userName: userData.fullName || "N/A",
             userDateOfBirth: userData.dateOfBirth || "N/A",
+            userPhone: userData.phone || "N/A",
           };
         })
       );
 
       setBookings(enrichedBookings);
-
-      // Update counters
-      const totalBookedOrAttended = enrichedBookings.filter(
-        (b) => b.bookingStatus === "Booked" || b.bookingStatus === "Attended"
-      ).length;
-
-      const totalCancelled = enrichedBookings.filter(
-        (b) => b.bookingStatus === "Cancelled"
-      ).length;
-
-      const totalAttended = enrichedBookings.filter(
-        (b) => b.bookingStatus === "Attended"
-      ).length;
-
-      setTotalBookings(totalBookedOrAttended);
-      setTotalCancellations(totalCancelled);
-      setTotalAttendees(totalAttended);
+      setFilteredBookings(enrichedBookings);
+      updateCounters(enrichedBookings);
     } catch (error) {
       console.error("Error fetching bookings:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateCounters = (filteredData) => {
+    const totalBookedOrAttended = filteredData.filter(
+      (b) => b.status === "Booked" || b.status === "Attended"
+    ).length;
+
+    const totalCancelled = filteredData.filter(
+      (b) => b.status === "Cancelled"
+    ).length;
+
+    const totalAttended = filteredData.filter(
+      (b) => b.status === "Attended"
+    ).length;
+
+    setTotalBookings(totalBookedOrAttended);
+    setTotalCancellations(totalCancelled);
+    setTotalAttendees(totalAttended);
+  };
+
+  const handleEventChange = (event) => {
+    const selectedEventId = event.target.value;
+    setSelectedEvent(selectedEventId);
+
+    if (selectedEventId === "All") {
+      setFilteredBookings(bookings);
+      updateCounters(bookings);
+    } else {
+      const filteredData = bookings.filter(
+        (booking) => booking.eventId === selectedEventId
+      );
+      setFilteredBookings(filteredData);
+      updateCounters(filteredData);
     }
   };
 
@@ -102,7 +148,7 @@ const RSVPReport = () => {
     if (!selectedBooking) return;
 
     try {
-      const bookingDoc = doc(db, "Bookings", selectedBooking.bookingId);
+      const bookingDoc = doc(db, "Bookings", selectedBooking.id);
       await updateDoc(bookingDoc, { status: "Cancelled" });
 
       fetchBookings();
@@ -136,21 +182,23 @@ const RSVPReport = () => {
       >
         RSVP Report
       </Typography>
+
       <Box
         sx={{
           display: "flex",
-          justifyContent: "space-around",
+          justifyContent: "space-between",
           alignItems: "center",
           mb: 4,
+          gap: 2,
         }}
       >
         <Typography
           variant="h5"
           sx={{
-            color: "#7B3F3F",
+            color: "white",
             fontWeight: "bold",
             padding: "1rem",
-            backgroundColor: "white",
+            backgroundColor: "#7B3F3F",
             borderRadius: "8px",
             boxShadow: 3,
           }}
@@ -160,10 +208,10 @@ const RSVPReport = () => {
         <Typography
           variant="h5"
           sx={{
-            color: "#7B3F3F",
+            color: "white",
             fontWeight: "bold",
             padding: "1rem",
-            backgroundColor: "white",
+            backgroundColor: "#E57373",
             borderRadius: "8px",
             boxShadow: 3,
           }}
@@ -173,16 +221,29 @@ const RSVPReport = () => {
         <Typography
           variant="h5"
           sx={{
-            color: "#7B3F3F",
+            color: "white",
             fontWeight: "bold",
             padding: "1rem",
-            backgroundColor: "white",
+            backgroundColor: "#388E3C",
             borderRadius: "8px",
             boxShadow: 3,
           }}
         >
           Total Attendees: {totalAttendees}
         </Typography>
+        <FormControl>
+          <Select
+            value={selectedEvent}
+            onChange={handleEventChange}
+            sx={{ backgroundColor: "white", borderRadius: "4px" }}
+          >
+            {events.map((event) => (
+              <MenuItem key={event.id} value={event.id}>
+                {event.Title}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
 
       <TableContainer component={Paper} sx={{ mt: 3 }}>
@@ -194,6 +255,7 @@ const RSVPReport = () => {
               <TableCell><strong>Event Date</strong></TableCell>
               <TableCell><strong>Event Location</strong></TableCell>
               <TableCell><strong>User Name</strong></TableCell>
+              <TableCell><strong>Phone Number</strong></TableCell>
               <TableCell><strong>Date of Birth</strong></TableCell>
               <TableCell><strong>Booking Date</strong></TableCell>
               <TableCell><strong>Status</strong></TableCell>
@@ -201,18 +263,19 @@ const RSVPReport = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {bookings.map((booking) => (
+            {filteredBookings.map((booking) => (
               <TableRow key={booking.bookingId}>
                 <TableCell>{booking.bookingId}</TableCell>
                 <TableCell>{booking.eventTitle}</TableCell>
                 <TableCell>{booking.eventDate}</TableCell>
                 <TableCell>{booking.eventLocation}</TableCell>
                 <TableCell>{booking.userName}</TableCell>
+                <TableCell>{booking.userPhone}</TableCell>
                 <TableCell>{new Date(booking.userDateOfBirth).toLocaleDateString()}</TableCell>
                 <TableCell>{new Date(booking.bookingDate).toLocaleDateString()}</TableCell>
-                <TableCell>{booking.bookingStatus}</TableCell>
+                <TableCell>{booking.status}</TableCell>
                 <TableCell>
-                  {booking.bookingStatus === "Booked" && (
+                  {booking.status === "Booked" && (
                     <Button
                       variant="outlined"
                       color="error"
@@ -228,7 +291,6 @@ const RSVPReport = () => {
         </Table>
       </TableContainer>
 
-      {/* Cancel Confirmation Dialog */}
       <Dialog open={dialogOpen} onClose={closeCancelDialog}>
         <DialogTitle>Confirm Cancellation</DialogTitle>
         <DialogContent>

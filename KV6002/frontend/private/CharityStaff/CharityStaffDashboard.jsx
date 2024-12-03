@@ -3,6 +3,7 @@ import { Box, Typography, Tabs, Tab } from "@mui/material";
 import RSVPReport from "../SharedFiles/RSVPReport"; // Import RSVPReport
 import UserManagement from "../Admin/UserManagement"; // Import UserManagement
 import AttendanceManagement from "../SharedFiles/AttendanceManagement"; // Import AttendanceManagement
+import OutreachSummary from "../SharedFiles/OutreachSummary"; // Import OutreachSummary
 
 const CharityStaffDashboard = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -39,14 +40,16 @@ const CharityStaffDashboard = () => {
         >
           <Tab label="RSVP Report" />
           <Tab label="User Management" />
-          <Tab label="Attendance Management" /> {/* New Tab */}
+          <Tab label="Attendance Management" />
+          <Tab label="Outreach Summary" /> {/* New Tab for Outreach Summary */}
         </Tabs>
       </Box>
 
       {/* Render components based on active tab */}
       {activeTab === 0 && <RSVPReport />}
       {activeTab === 1 && <UserManagement />}
-      {activeTab === 2 && <AttendanceManagement />} {/* Render Attendance Management */}
+      {activeTab === 2 && <AttendanceManagement />}
+      {activeTab === 3 && <OutreachSummary />} {/* Render Outreach Summary */}
     </Box>
   );
 };

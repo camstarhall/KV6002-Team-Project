@@ -71,6 +71,10 @@ const BookingForm = ({ event, onCancel }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Reset messages
+    setError("");
+    setSuccess("");
+
     // Validate current capacity
     if (currentCapacity >= event.Capacity) {
       setError("This event is fully booked.");
@@ -98,34 +102,76 @@ const BookingForm = ({ event, onCancel }) => {
     }
 
     try {
-      // Add user details to Users collection
-      const usersCollection = collection(db, "Users");
-      const userRef = await addDoc(usersCollection, {
-        fullName: formData.fullName,
-        gender: formData.gender,
-        dateOfBirth: formData.dateOfBirth,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        employmentStatus: formData.employmentStatus,
-        annualSalary: formData.annualSalary,
-      });
-
-      // Add booking details to Bookings collection
+      // Check if the user already has a booking for this event
       const bookingsCollection = collection(db, "Bookings");
+      const existingBookingQuery = query(
+        bookingsCollection,
+        where("eventId", "==", event.id),
+        where("phone", "==", formData.phone)
+      );
+      const existingBookingSnapshot = await getDocs(existingBookingQuery);
+
+      if (!existingBookingSnapshot.empty) {
+        const existingBooking = existingBookingSnapshot.docs[0].data();
+        if (existingBooking.status === "Booked") {
+          setError("You have already booked this event.");
+          return;
+        } else if (existingBooking.status === "Cancelled") {
+          // Allow rebooking if the booking was previously cancelled
+          const bookingDocId = existingBookingSnapshot.docs[0].id;
+          const bookingDoc = doc(db, "Bookings", bookingDocId);
+
+          await updateDoc(bookingDoc, {
+            status: "Booked",
+            bookingDate: new Date().toISOString(),
+          });
+
+          setSuccess("Your booking has been successfully reactivated!");
+          fetchCurrentCapacity();
+          return;
+        }
+      }
+
+      // Save user details to the Users collection
+      const usersCollection = collection(db, "Users");
+      const existingUserQuery = query(
+        usersCollection,
+        where("phone", "==", formData.phone)
+      );
+      const existingUserSnapshot = await getDocs(existingUserQuery);
+
+      let userId;
+
+      if (existingUserSnapshot.empty) {
+        // Create a new user record
+        const userDoc = await addDoc(usersCollection, {
+          fullName: formData.fullName,
+          gender: formData.gender,
+          dateOfBirth: formData.dateOfBirth,
+          email: formData.email || null,
+          phone: formData.phone,
+          address: formData.address,
+          employmentStatus: formData.employmentStatus,
+          annualSalary: formData.annualSalary || null,
+        });
+        userId = userDoc.id; // Get the new user ID
+      } else {
+        // Get the existing user ID
+        userId = existingUserSnapshot.docs[0].id;
+      }
+
+      // Save new booking to the Bookings collection
       await addDoc(bookingsCollection, {
         eventId: event.id,
         eventTitle: event.Title,
-        userId: userRef.id, // Reference to the user's document ID
+        userId: userId,
+        phone: formData.phone,
+        email: formData.email || null,
         status: "Booked",
         bookingDate: new Date().toISOString(),
       });
 
-      // Update current capacity
-      await fetchCurrentCapacity();
-
       setSuccess("Booking successful!");
-      setError("");
       setFormData({
         fullName: "",
         gender: "",
@@ -136,6 +182,7 @@ const BookingForm = ({ event, onCancel }) => {
         employmentStatus: "",
         annualSalary: "",
       });
+      fetchCurrentCapacity();
     } catch (err) {
       console.error("Error saving booking:", err);
       setError("An error occurred while processing your booking.");
@@ -197,13 +244,12 @@ const BookingForm = ({ event, onCancel }) => {
         sx={{ mb: 2 }}
       />
       <TextField
-        label="Email Address"
+        label="Email Address (Optional)"
         name="email"
         type="email"
         value={formData.email}
         onChange={handleInputChange}
         fullWidth
-        required
         sx={{ mb: 2 }}
       />
       <TextField

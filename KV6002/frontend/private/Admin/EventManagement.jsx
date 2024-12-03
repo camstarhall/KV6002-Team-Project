@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
-  TextField,
   Button,
   Modal,
   Card,
@@ -13,11 +12,51 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  TextField,
 } from "@mui/material";
 import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+
+const SocialShareButtons = ({ event }) => {
+  const eventURL = `https://www.myevents.com/events/${event.id}`;
+  const encodedTitle = encodeURIComponent(event.Title);
+  const encodedDescription = encodeURIComponent(event.Description);
+
+  return (
+    <Box sx={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+      <a
+        href={`https://www.facebook.com/sharer/sharer.php?u=${eventURL}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Button variant="outlined" color="primary">Facebook</Button>
+      </a>
+      <a
+        href={`https://twitter.com/intent/tweet?text=${encodedTitle}&url=${eventURL}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Button variant="outlined" color="secondary">Twitter</Button>
+      </a>
+      <a
+        href={`https://api.whatsapp.com/send?text=${encodedTitle} - ${eventURL}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Button variant="outlined" color="success">WhatsApp</Button>
+      </a>
+      <a
+        href={`https://www.linkedin.com/sharing/share-offsite/?url=${eventURL}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Button variant="outlined" color="info">LinkedIn</Button>
+      </a>
+    </Box>
+  );
+};
 
 function EventManagement() {
   const [events, setEvents] = useState([]);
@@ -76,15 +115,18 @@ function EventManagement() {
     e.preventDefault();
     const eventsCollection = collection(db, "Events");
 
-    if (isEdit && currentEventId) {
-      const eventDoc = doc(db, "Events", currentEventId);
-      await updateDoc(eventDoc, formData);
-    } else {
-      await addDoc(eventsCollection, formData);
+    try {
+      if (isEdit && currentEventId) {
+        const eventDoc = doc(db, "Events", currentEventId);
+        await updateDoc(eventDoc, formData);
+      } else {
+        await addDoc(eventsCollection, formData);
+      }
+      fetchEvents();
+      handleCloseModal();
+    } catch (error) {
+      console.error("Error saving event:", error);
     }
-
-    fetchEvents();
-    handleCloseModal();
   };
 
   const handleOpenDeleteDialog = (id) => {
@@ -98,11 +140,15 @@ function EventManagement() {
   };
 
   const handleDelete = async () => {
-    if (deleteEventId) {
-      const eventDoc = doc(db, "Events", deleteEventId);
-      await deleteDoc(eventDoc);
-      fetchEvents();
-      handleCloseDeleteDialog();
+    try {
+      if (deleteEventId) {
+        const eventDoc = doc(db, "Events", deleteEventId);
+        await deleteDoc(eventDoc);
+        fetchEvents();
+        handleCloseDeleteDialog();
+      }
+    } catch (error) {
+      console.error("Error deleting event:", error);
     }
   };
 
@@ -123,13 +169,20 @@ function EventManagement() {
       {events.map((event) => (
         <Card
           key={event.id}
-          sx={{ mb: 2, padding: "1rem", display: "flex", justifyContent: "space-between" }}
+          sx={{
+            mb: 2,
+            padding: "1rem",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
         >
           <CardContent>
             <Typography variant="h6">{event.Title}</Typography>
             <Typography>Date: {event.Date}</Typography>
             <Typography>Location: {event.Location}</Typography>
             <Typography>Capacity: {event.Capacity}</Typography>
+            <SocialShareButtons event={event} /> {/* Add Share Buttons */}
           </CardContent>
           <Box>
             <IconButton color="primary" onClick={() => handleOpenModal(event)}>

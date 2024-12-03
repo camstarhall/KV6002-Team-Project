@@ -1,5 +1,3 @@
-// src/components/Feedback.jsx
-
 import React, { useState } from "react";
 import { Box, Typography, Button, TextField, Snackbar, Alert } from "@mui/material";
 

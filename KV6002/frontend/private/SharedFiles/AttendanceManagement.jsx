@@ -21,7 +21,7 @@ import { db } from "../../../firebaseConfig";
 
 const AttendanceManagement = () => {
   const [bookings, setBookings] = useState([]);
-  const [searchType, setSearchType] = useState("bookingId"); // Default search type
+  const [searchType, setSearchType] = useState("bookingId");
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [searchExecuted, setSearchExecuted] = useState(false);
@@ -43,7 +43,35 @@ const AttendanceManagement = () => {
         ...doc.data(),
       }));
 
-      setBookings(bookingsData);
+      const enrichedBookings = await Promise.all(
+        bookingsData.map(async (booking) => {
+          const eventDoc = booking.eventId
+            ? await getDoc(doc(db, "Events", booking.eventId))
+            : null;
+          const eventData = eventDoc?.exists() ? eventDoc.data() : {};
+
+          const userDoc = booking.userId
+            ? await getDoc(doc(db, "Users", booking.userId))
+            : null;
+          const userData = userDoc?.exists() ? userDoc.data() : {};
+
+          return {
+            ...booking,
+            eventTitle: eventData?.Title || "N/A",
+            eventDate: eventData?.Date
+              ? new Date(eventData.Date).toLocaleDateString()
+              : "N/A",
+            eventLocation: eventData?.Location || "N/A",
+            userName: userData?.fullName || "N/A",
+            userPhone: userData?.phone || "N/A",
+            userDateOfBirth: userData?.dateOfBirth
+              ? new Date(userData.dateOfBirth).toLocaleDateString()
+              : "N/A",
+          };
+        })
+      );
+
+      setBookings(enrichedBookings);
     } catch (error) {
       console.error("Error fetching bookings:", error);
     } finally {
@@ -51,53 +79,32 @@ const AttendanceManagement = () => {
     }
   };
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     setSearchExecuted(true);
+
     if (!searchQuery.trim()) {
       setFilteredBookings([]);
       return;
     }
 
-    let matchedBookings = [];
+    const query = searchQuery.trim().toLowerCase();
 
-    if (searchType === "bookingId") {
-      matchedBookings = bookings.filter(
-        (booking) => booking.bookingId?.toLowerCase() === searchQuery.toLowerCase()
-      );
-    } else {
-      const enrichedBookings = await Promise.all(
-        bookings.map(async (booking) => {
-          const userDoc = await getDoc(doc(db, "Users", booking.userId));
-          const userData = userDoc.exists() ? userDoc.data() : {};
-          return {
-            ...booking,
-            userName: userData.fullName || "N/A",
-            userPhone: userData.phone || "N/A",
-            userDateOfBirth: userData.dateOfBirth
-              ? new Date(userData.dateOfBirth).toISOString().split("T")[0]
-              : "N/A",
-          };
-        })
-      );
-
-      if (searchType === "phone") {
-        matchedBookings = enrichedBookings.filter(
-          (booking) => booking.userPhone?.toLowerCase() === searchQuery.toLowerCase()
-        );
-      } else if (searchType === "dateOfBirth") {
-        matchedBookings = enrichedBookings.filter(
-          (booking) =>
-            booking.userDateOfBirth &&
-            booking.userDateOfBirth === searchQuery
-        );
-      } else if (searchType === "name") {
-        matchedBookings = enrichedBookings.filter((booking) =>
-          booking.userName?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+    const matchedBookings = bookings.filter((booking) => {
+      switch (searchType) {
+        case "bookingId":
+          return booking.bookingId?.toLowerCase() === query;
+        case "phone":
+          return booking.userPhone?.toLowerCase() === query;
+        case "dateOfBirth":
+          return booking.userDateOfBirth === query;
+        case "name":
+          return booking.userName?.toLowerCase().includes(query);
+        default:
+          return false;
       }
-    }
+    });
 
-    setFilteredBookings(matchedBookings.length > 0 ? matchedBookings : []);
+    setFilteredBookings(matchedBookings);
   };
 
   const markAsAttended = async (bookingId) => {
@@ -105,12 +112,6 @@ const AttendanceManagement = () => {
       const bookingDoc = doc(db, "Bookings", bookingId);
       await updateDoc(bookingDoc, { status: "Attended" });
       fetchBookings();
-
-      setFilteredBookings((prev) =>
-        prev.map((booking) =>
-          booking.bookingId === bookingId ? { ...booking, status: "Attended" } : booking
-        )
-      );
     } catch (error) {
       console.error("Error marking attendance:", error);
     }
@@ -142,10 +143,7 @@ const AttendanceManagement = () => {
       <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
         <FormControl fullWidth>
           <InputLabel>Search By</InputLabel>
-          <Select
-            value={searchType}
-            onChange={(e) => setSearchType(e.target.value)}
-          >
+          <Select value={searchType} onChange={(e) => setSearchType(e.target.value)}>
             <MenuItem value="bookingId">Booking ID</MenuItem>
             <MenuItem value="phone">Phone Number</MenuItem>
             <MenuItem value="dateOfBirth">Date of Birth</MenuItem>
@@ -179,6 +177,9 @@ const AttendanceManagement = () => {
               <TableRow>
                 <TableCell><strong>Booking ID</strong></TableCell>
                 <TableCell><strong>Status</strong></TableCell>
+                <TableCell><strong>Event Title</strong></TableCell>
+                <TableCell><strong>Event Date</strong></TableCell>
+                <TableCell><strong>Event Location</strong></TableCell>
                 <TableCell><strong>Full Name</strong></TableCell>
                 <TableCell><strong>Date of Birth</strong></TableCell>
                 <TableCell><strong>Phone Number</strong></TableCell>
@@ -190,6 +191,9 @@ const AttendanceManagement = () => {
                 <TableRow key={booking.id}>
                   <TableCell>{booking.bookingId || "N/A"}</TableCell>
                   <TableCell>{booking.status || "N/A"}</TableCell>
+                  <TableCell>{booking.eventTitle || "N/A"}</TableCell>
+                  <TableCell>{booking.eventDate || "N/A"}</TableCell>
+                  <TableCell>{booking.eventLocation || "N/A"}</TableCell>
                   <TableCell>{booking.userName || "N/A"}</TableCell>
                   <TableCell>{booking.userDateOfBirth || "N/A"}</TableCell>
                   <TableCell>{booking.userPhone || "N/A"}</TableCell>
@@ -214,7 +218,7 @@ const AttendanceManagement = () => {
       {/* No Results */}
       {searchExecuted && filteredBookings.length === 0 && (
         <Typography variant="body1" sx={{ mt: 2, textAlign: "center", color: "#7B3F3F" }}>
-          No matching attendees found.
+          No matching bookings found. Check your search criteria.
         </Typography>
       )}
     </Box>

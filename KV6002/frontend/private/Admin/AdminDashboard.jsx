@@ -6,7 +6,8 @@ import FeedbackView from "./FeedbackView";
 import UserManagement from "./UserManagement";
 import LocalLeaderManagement from "./LocalLeaderManagement";
 import CharityStaffManagement from "./CharityStaffManagement";
-import AttendanceManagement from "../SharedFiles/AttendanceManagement"; // Import Attendance Management
+import AttendanceManagement from "../SharedFiles/AttendanceManagement";
+import OutreachSummary from "../SharedFiles/OutreachSummary"; // Import OutreachSummary
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -37,7 +38,8 @@ const AdminDashboard = () => {
           <Tab label="User Management" />
           <Tab label="Local Leader Management" />
           <Tab label="Charity Staff Management" />
-          <Tab label="Attendance Management" /> {/* Add Attendance Management Tab */}
+          <Tab label="Attendance Management" />
+          <Tab label="Outreach Summary" /> {/* New Outreach Summary Tab */}
         </Tabs>
       </Box>
 
@@ -48,7 +50,8 @@ const AdminDashboard = () => {
         {activeTab === 3 && <UserManagement />}
         {activeTab === 4 && <LocalLeaderManagement />}
         {activeTab === 5 && <CharityStaffManagement />}
-        {activeTab === 6 && <AttendanceManagement />} {/* Render Attendance Management */}
+        {activeTab === 6 && <AttendanceManagement />}
+        {activeTab === 7 && <OutreachSummary />} {/* Render Outreach Summary */}
       </Box>
     </Box>
   );

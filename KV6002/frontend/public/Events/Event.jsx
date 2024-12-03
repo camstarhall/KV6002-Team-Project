@@ -1,114 +1,108 @@
-import React, { useState } from "react";
-import { Box, Typography, Button, TextField } from "@mui/material";
-import { Link } from "react-router-dom"; // Import Link for navigation
-import EventImg1 from "../assets/EventImages/EventImg1.png";
-import EventImg2 from "../assets/EventImages/EventImg2.png";
-import EventImg3 from "../assets/EventImages/EventImg3.png";
+import React, { useState, useEffect } from "react";
+import { Box, Typography, Button } from "@mui/material";
+import { Link } from "react-router-dom";
 
-// Sample events data with additional date field
-const events = [
-  {
-    id: 1,
-    img: EventImg1,
-    title: "Charity Run",
-    description: "Join us for a fun-filled charity run to support our community!",
-    date: "2024-11-01",
-  },
-  {
-    id: 2,
-    img: EventImg2,
-    title: "Food Drive",
-    description: "Help us collect food for those in need in our local community.",
-    date: "2024-12-01",
-  },
-  {
-    id: 3,
-    img: EventImg3,
-    title: "Community Clean-up",
-    description: "Be a part of our community clean-up day and make a difference!",
-    date: "2024-10-15",
-  },
-];
-
-function Event() {
-  const [searchTerm, setSearchTerm] = useState(""); // For title filtering
-  const [filterDate, setFilterDate] = useState(""); // For date filtering
-
-  // Filter events based on title and date
-  const filteredEvents = events.filter(event => {
-    const matchesTitle = event.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDate = filterDate ? event.date === filterDate : true; // If date is not set, include all
-    return matchesTitle && matchesDate;
-  });
+const SocialShareButtons = ({ event }) => {
+  const eventURL = `https://www.myevents.com/events/${event.id}`;
+  const encodedTitle = encodeURIComponent(event.title);
+  const encodedDescription = encodeURIComponent(event.description);
 
   return (
-    <Box
-      className="event-content"
-      sx={{
-        textAlign: "center",
-        padding: "2rem 1rem",
-        backgroundColor: "#D08C8C",
-        minHeight: "80vh",
-      }}
-    >
-      <Typography variant="h4" sx={{ color: 'black', marginBottom: '1rem' }}>
+    <Box sx={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+      <a
+        href={`https://www.facebook.com/sharer/sharer.php?u=${eventURL}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Button variant="outlined" color="primary">Facebook</Button>
+      </a>
+      <a
+        href={`https://twitter.com/intent/tweet?text=${encodedTitle}&url=${eventURL}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Button variant="outlined" color="secondary">Twitter</Button>
+      </a>
+      <a
+        href={`https://api.whatsapp.com/send?text=${encodedTitle} - ${eventURL}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Button variant="outlined" color="success">WhatsApp</Button>
+      </a>
+      <a
+        href={`https://www.linkedin.com/sharing/share-offsite/?url=${eventURL}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Button variant="outlined" color="info">LinkedIn</Button>
+      </a>
+    </Box>
+  );
+};
+
+function Event() {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    // Simulated API call to fetch events
+    const fetchEvents = async () => {
+      const mockEvents = [
+        {
+          id: 1,
+          title: "Charity Run",
+          description: "Join us for a fun-filled charity run to support our community!",
+          date: "2024-11-01",
+        },
+        {
+          id: 2,
+          title: "Food Drive",
+          description: "Help us collect food for those in need in our local community.",
+          date: "2024-12-01",
+        },
+      ];
+      setEvents(mockEvents);
+    };
+
+    fetchEvents();
+  }, []);
+
+  if (events.length === 0) {
+    return <Typography sx={{ textAlign: "center", marginTop: "2rem" }}>No events available.</Typography>;
+  }
+
+  return (
+    <Box sx={{ padding: "2rem", backgroundColor: "#f8e8e8" }}>
+      <Typography variant="h4" sx={{ textAlign: "center", marginBottom: "2rem" }}>
         Upcoming Events
       </Typography>
-      <Typography variant="body1" sx={{ color: 'black', marginBottom: '1rem' }}>
-        Join us for our upcoming events and make a difference in the community!
-      </Typography>
 
-      {/* Filter Inputs */}
-      <Box sx={{ marginBottom: "2rem" }}>
-        <TextField
-          label="Search by Title"
-          variant="outlined"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ marginRight: "1rem" }}
-        />
-        <TextField
-          label="Filter by Date"
-          type="date"
-          variant="outlined"
-          value={filterDate}
-          onChange={(e) => setFilterDate(e.target.value)}
-        />
-      </Box>
-
-      {/* Event Rows */}
-      {filteredEvents.map((event) => (
+      {events.map((event) => (
         <Box
           key={event.id}
           sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            padding: "1rem",
             marginBottom: "2rem",
             backgroundColor: "white",
             borderRadius: "8px",
-            boxShadow: 1,
-            padding: "1rem",
+            boxShadow: 2,
           }}
         >
-          <img
-            src={event.img}
-            alt={event.title}
-            style={{ width: "200px", height: "auto", marginRight: "1rem" }}
-          />
-          <Box sx={{ flexGrow: 1, textAlign: "left" }}>
-            <Typography variant="h6" sx={{ color: 'black' }}>
-              {event.title}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'black' }}>
-              {event.description}
-            </Typography>
-            <Link to="/event-details" state={{ event }}>
-              <Button variant="contained" color="primary" sx={{ marginTop: "1rem" }}>
-                View Details
-              </Button>
-            </Link>
-          </Box>
+          <Typography variant="h6" sx={{ marginBottom: "0.5rem" }}>
+            {event.title}
+          </Typography>
+          <Typography variant="body2" sx={{ marginBottom: "1rem" }}>
+            {event.description}
+          </Typography>
+          <Link to={`/event-details/${event.id}`}>
+            <Button variant="contained" color="primary" sx={{ marginBottom: "1rem" }}>
+              View Details
+            </Button>
+          </Link>
+          <Typography variant="subtitle1" sx={{ marginTop: "1rem", fontWeight: "bold" }}>
+            Share this Event:
+          </Typography>
+          <SocialShareButtons event={event} /> {/* Add Share Buttons */}
         </Box>
       ))}
     </Box>
