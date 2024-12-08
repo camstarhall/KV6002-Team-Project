@@ -5,58 +5,8 @@ import { Box, Typography, TextField, Button, Snackbar, Alert } from "@mui/materi
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import CryptoJS from "crypto-js"; // Hashing library
-
+import {loginCookieSet } from "./cookieHandling"; //Import cookie handling functions.
 const db = getFirestore(); //Initialise firebase connection
-
-
-//Cookie Check
-
-/*function getCookies(variable)
-{
-    const cookies = document.cookie.split('; ');
-
-    for (let i of cookies){
-        const [key, value] = cookie.split('=');
-        
-        if (key === variable)
-        {
-            return value;
-        }
-    }
-    return null;
-}
-*/
-
-//Checks if there's a user currently logged in.
-/*function loginCheck()
-{
-    const loggedInUser = getCookie('username');
-
-    if (loggedInUser === null)
-        {
-            navigate('/Login');
-        }
-
-    
-}
-*/
-
-//Initialises user related cookies for login management
-/*function loginCookieSet (userhash)
-{   
-    try{
-        const expirationDays = 7; //No. days before cookie data expires.
-        const date = new Date();
-        date.setTime(date.getTime() + expirationDays * 24 * 60 * 60 * 1000) //Converts days to milliseconds.
-
-        //set cookie
-
-        document.cookie = 'username =${username}; expires=${date.toUTCString()}; path=/';
-    }
-
-    catch(error){console.log("Cookie setting failed: ", error );}
-}
-*/
 
 function Login() {
     const [email, setEmail] = useState("");
@@ -102,7 +52,7 @@ function Login() {
                 const isValidUser = await validateUser(emailHash, password);
 
                 if (isValidUser) {
-                    //loginCookieSet(email);
+                    loginCookieSet(email);
                     console.log("Login successful:", email);
                     navigate("/staff-dashboard"); // Redirect to dashboard
                 }
