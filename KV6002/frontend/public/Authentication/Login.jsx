@@ -5,7 +5,7 @@ import { Box, Typography, TextField, Button, Snackbar, Alert } from "@mui/materi
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import CryptoJS from "crypto-js"; // Hashing library
-import {loginCookieSet } from "./cookieHandling"; //Import cookie handling functions.
+import { loginCookieSet, existingLoginCheck } from "./cookieHandling"; //Import cookie handling functions.
 const db = getFirestore(); //Initialise firebase connection
 
 function Login() {
@@ -35,39 +35,41 @@ function Login() {
             return checkPwInput(userData.Password, passwordInput); //Check whether password is correct.
         }
 
-        catch (error){console.log("User validation failed: ", error);
+        catch (error) {
+            console.log("User validation failed: ", error);
             throw error; //ensure the error is outputted
         }
-
     }
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-            e.preventDefault();
-            setLoading(true);
-            setErrorMessage("");
+    existingLoginCheck();
+    // Handle form submission
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setErrorMessage("");
 
-            try {
-                var emailHash = CryptoJS.SHA256(email).toString(CryptoJS.enc.Base64); //Encrypt input 
-                const isValidUser = await validateUser(emailHash, password);
+        try {
+            var emailHash = CryptoJS.SHA256(email).toString(CryptoJS.enc.Base64); //Encrypt input 
+            const isValidUser = await validateUser(emailHash, password);
 
-                if (isValidUser) {
-                    loginCookieSet(email);
-                    console.log("Login successful:", email);
-                    navigate("/staff-dashboard"); // Redirect to dashboard
-                }
-            } catch (error) {
-                // Handle user-friendly errors
-                setErrorMessage(
-                    error.message === "User not found" || error.message === "Invalid password"
-                        ? "Invalid email or password. Please try again."
-                        : "An unexpected error occurred. Please try again."
-                );
-            } finally {
-                setLoading(false);
+            if (isValidUser) {
+                loginCookieSet(email);
+                console.log("Login successful:", email);
+                navigate("/staff-dashboard"); // Redirect to dashboard
             }
-        };
-
+        } catch (error) {
+            // Handle user-friendly errors
+            setErrorMessage(
+                error.message === "User not found" || error.message === "Invalid password"
+                    ? "Invalid email or password. Please try again."
+                    : "An unexpected error occurred. Please try again."
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    if (existingLoginCheck == true){
         return (
             <Box
                 sx={{
@@ -119,5 +121,6 @@ function Login() {
             </Box>
         );
     }
+}
 
 export default Login;
