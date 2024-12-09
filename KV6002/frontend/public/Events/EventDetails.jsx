@@ -44,7 +44,6 @@ const EventDetails = () => {
       console.error("Error fetching event details:", error);
     } finally {
       setLoading(false);
-      console.log("Event details loaded: ", event);
     }
   };
 
@@ -148,19 +147,6 @@ const EventDetails = () => {
                   <strong>Description:</strong> {event.Description}
                 </Typography>
 
-                <Box
-                  component="img"
-                  src={event.imageURL || "/placeholder.png"}
-                  alt={event.Title}
-                  sx={{
-                    width: "100%",
-                    maxHeight: 300,
-                    objectFit: "cover",
-                    borderRadius: "8px",
-                    mb: 3,
-                  }}
-                />
-
                 <Button
                   variant="contained"
                   color={isFullyBooked ? "secondary" : "primary"}
@@ -172,6 +158,24 @@ const EventDetails = () => {
                 </Button>
               </CardContent>
             </Card>
+          </Grid>
+
+          <Grid
+            item
+            xs={12}
+            md={6}
+          >
+            <Box
+              component="img"
+              src={event.imageURL || "/placeholder.png"}
+              alt={event.Title}
+              sx={{
+                width: "100%",
+                height: "auto",
+                objectFit: "contain",
+                borderRadius: "8px",
+              }}
+            />
           </Grid>
         </Grid>
       ) : (

@@ -315,7 +315,7 @@ function EventManagement() {
                 <img
                   src={event.imageURL}
                   alt={event.Title}
-                  style={{ maxWidth: "100%", height: "auto" }}
+                  style={{ maxWidth: "15%", height: "auto" }}
                 />
               </Box>
             )}
@@ -427,7 +427,7 @@ function EventManagement() {
                 <img
                   src={imagePreview}
                   alt="Preview"
-                  style={{ maxWidth: "100%", height: "auto" }}
+                  style={{ maxWidth: "70%", height: "auto" }}
                 />
               </Box>
             )}
@@ -436,7 +436,7 @@ function EventManagement() {
               component="label"
               disabled={uploading}
             >
-              {uploading ? "Uploading..." : "Upload Image FIXED?"}
+              {uploading ? "Uploading..." : "Upload Image"}
               <input
                 type="file"
                 accept="image/*"
