@@ -1,12 +1,22 @@
+// KV6002/frontend/layout/Header.jsx
 import React from "react";
 import { Box, Typography, Button } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import charityLogo from "../assets/Rose_logo.png";
+import { existingLoginCheck, logoutUser } from "../public/Authentication/cookieHandling";
 
 function Header() {
+  const navigate = useNavigate();
+  const isLoggedIn = existingLoginCheck(); // checks if username cookie exists
+
+  const handleLogout = () => {
+    logoutUser();
+    navigate("/login");
+  };
+
   return (
     <Box>
-      {/* Top bar with slogan and language button */}
+      {/* Top bar */}
       <Box
         sx={{
           backgroundColor: "#7B3F3F",
@@ -43,9 +53,10 @@ function Header() {
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            width: "100%", // Ensures nav links are centered
+            width: "100%",
           }}
         >
+          {/* Public links: Home, Events, Feedback always visible */}
           <Link to="/" style={navLinkStyle}>
             Home
           </Link>
@@ -55,18 +66,25 @@ function Header() {
           <Link to="/feedback" style={navLinkStyle}>
             Feedback
           </Link>
-          <Link to="/admin-dashboard" style={navLinkStyle}>
-            Admin Dashboard
-          </Link>
-          <Link to="/leader-dashboard" style={navLinkStyle}>
-            Local Leader Dashboard
-          </Link>
-          <Link to="/staff-dashboard" style={navLinkStyle}>
-            Staff Dashboard
-          </Link>
-          <Link to="/login" style={navLinkStyle}>
-            Login
-          </Link>
+
+          {/* Removed Admin/Leader/Staff Dashboard links entirely 
+              as per request, user must login and system directs them automatically. 
+              No dashboard links in the header. 
+          */}
+
+          {isLoggedIn ? (
+            <Button
+              style={navLinkStyle}
+              onClick={handleLogout}
+              sx={{ backgroundColor: "#7B3F3F", color: "white" }}
+            >
+              Logout
+            </Button>
+          ) : (
+            <Link to="/login" style={navLinkStyle}>
+              Login
+            </Link>
+          )}
         </nav>
       </Box>
     </Box>

@@ -1,12 +1,14 @@
 // src/components/Login.jsx
-//Relevant packages
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, TextField, Button, Snackbar, Alert } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { doc, getDoc, getFirestore } from "firebase/firestore";
-import CryptoJS from "crypto-js"; // Hashing library
-import { loginCookieSet, existingLoginCheck } from "./cookieHandling"; //Import cookie handling functions.
-const db = getFirestore(); //Initialise firebase connection
+import { collection, query, where, getDocs, getFirestore } from "firebase/firestore";
+import { loginCookieSet, existingLoginCheck, logoutUser } from "./cookieHandling";
+
+const db = getFirestore();
+
+// Inactivity timer (in milliseconds)
+const INACTIVITY_TIME = 2 * 60 * 1000; // 2 minutes
 
 function Login() {
     const [email, setEmail] = useState("");
@@ -15,50 +17,71 @@ function Login() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    async function checkPwInput(storedHash, pwInput) {
-        const pHash = CryptoJS.SHA256(pwInput).toString(CryptoJS.enc.Base64); //Hashed inputted password
-        return pHash == storedHash;
+    const alreadyLoggedIn = existingLoginCheck();
+
+    let inactivityTimer;
+
+    // Queries a given collection by email field
+    async function getUserByEmail(collectionName, userEmail) {
+        const q = query(collection(db, collectionName), where("email", "==", userEmail));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            return null;
+        }
+        return querySnapshot.docs[0].data();
     }
 
-    // Validate user credentials with Firestore
-    async function validateUser(emailHash, passwordInput) {
-        try {
-            // Hash email to get document key
-            const docRef = doc(db, "Users", emailHash);
-            const docSnap = await getDoc(docRef);
-
-            if (!docSnap.exists()) {
-                throw new Error("User not found");
-            }
-
-            const userData = docSnap.data(); //Retrieve user attributes from firebase document.
-            return checkPwInput(userData.Password, passwordInput); //Check whether password is correct.
+    async function validateUser(userEmail, passwordInput) {
+        // Check Admin collection
+        let userData = await getUserByEmail("Admin", userEmail);
+        if (userData) {
+            if (userData.password !== passwordInput) throw new Error("Invalid password");
+            return userData; // role: 'admin'
         }
 
-        catch (error) {
-            console.log("User validation failed: ", error);
-            throw error; //ensure the error is outputted
+        // Check CharityStaff collection
+        userData = await getUserByEmail("CharityStaff", userEmail);
+        if (userData) {
+            if (userData.password !== passwordInput) throw new Error("Invalid password");
+            return userData; // role: 'charity staff'
         }
+
+        // Check LocalLeaders collection
+        userData = await getUserByEmail("LocalLeaders", userEmail);
+        if (userData) {
+            if (userData.password !== passwordInput) throw new Error("Invalid password");
+            return userData; // role: 'local leader'
+        }
+
+        throw new Error("User not found");
     }
 
-    existingLoginCheck();
-    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setErrorMessage("");
 
         try {
-            var emailHash = CryptoJS.SHA256(email).toString(CryptoJS.enc.Base64); //Encrypt input 
-            const isValidUser = await validateUser(emailHash, password);
+            const userData = await validateUser(email, password);
 
-            if (isValidUser) {
-                loginCookieSet(email);
-                console.log("Login successful:", email);
-                navigate("/staff-dashboard"); // Redirect to dashboard
+            // User valid
+            loginCookieSet(email);
+            console.log("Login successful:", email, "Role:", userData.role);
+
+            // Redirect based on role
+            if (userData.role === "admin") {
+                navigate("/admin-dashboard");
+            } else if (userData.role === "charity staff") {
+                navigate("/staff-dashboard");
+            } else if (userData.role === "local leader") {
+                navigate("/leader-dashboard");
+            } else {
+                setErrorMessage("Your account role is not recognized. Please contact support.");
             }
+
+            // Start inactivity timer after login
+            startInactivityTimer();
         } catch (error) {
-            // Handle user-friendly errors
             setErrorMessage(
                 error.message === "User not found" || error.message === "Invalid password"
                     ? "Invalid email or password. Please try again."
@@ -68,28 +91,75 @@ function Login() {
             setLoading(false);
         }
     };
-    
-    if (existingLoginCheck == true){
-        return (
-            <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: "100vh",
-                    backgroundColor: "#D08C8C",
-                }}
-            >
-                <Typography variant="h4" sx={{ color: "white", mb: 3 }}>
-                    Login
-                </Typography>
+
+    const handleLogout = () => {
+        logoutUser();
+        window.location.reload();
+    };
+
+    // Start inactivity timer, logs out after 2 minutes of inactivity
+    function startInactivityTimer() {
+        resetInactivityTimer();
+        window.addEventListener('mousemove', resetInactivityTimer);
+        window.addEventListener('keydown', resetInactivityTimer);
+    }
+
+    function resetInactivityTimer() {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+            // Inactive for 2 minutes, logout
+            logoutUser();
+            window.location.reload();
+        }, INACTIVITY_TIME);
+    }
+
+    useEffect(() => {
+        if (alreadyLoggedIn) {
+            // If already logged in, start inactivity timer
+            startInactivityTimer();
+        }
+        // Cleanup event listeners on unmount
+        return () => {
+            window.removeEventListener('mousemove', resetInactivityTimer);
+            window.removeEventListener('keydown', resetInactivityTimer);
+        };
+    }, [alreadyLoggedIn]);
+
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: "100vh",
+                backgroundColor: "#D08C8C",
+            }}
+        >
+            <Typography variant="h4" sx={{ color: "white", mb: 3 }}>
+                Login
+            </Typography>
+
+            {alreadyLoggedIn ? (
+                <Box sx={{ textAlign: "center", color: "white" }}>
+                    <Typography variant="body1" sx={{ mb: 2 }}>
+                        You are already logged in.
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        sx={{ backgroundColor: "#7B3F3F", color: "white" }}
+                        onClick={handleLogout}
+                    >
+                        Logout
+                    </Button>
+                </Box>
+            ) : (
                 <form onSubmit={handleSubmit} style={{ width: "300px" }}>
                     <TextField
                         label="Email"
                         type="text"
                         fullWidth
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 2, backgroundColor: "white" }}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
@@ -98,7 +168,7 @@ function Login() {
                         label="Password"
                         type="password"
                         fullWidth
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 2, backgroundColor: "white" }}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
@@ -113,14 +183,15 @@ function Login() {
                         {loading ? "Logging in..." : "Login"}
                     </Button>
                 </form>
-                {errorMessage && (
-                    <Snackbar open autoHideDuration={6000} onClose={() => setErrorMessage("")}>
-                        <Alert severity="error">{errorMessage}</Alert>
-                    </Snackbar>
-                )}
-            </Box>
-        );
-    }
+            )}
+
+            {errorMessage && (
+                <Snackbar open autoHideDuration={6000} onClose={() => setErrorMessage("")}>
+                    <Alert severity="error">{errorMessage}</Alert>
+                </Snackbar>
+            )}
+        </Box>
+    );
 }
 
 export default Login;
