@@ -3,7 +3,7 @@ import React from "react";
 import { Box, Typography, Button } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import charityLogo from "../assets/Rose_logo.png";
-import { existingLoginCheck, logoutUser } from "../public/Authentication/cookieHandling";
+import { existingLoginCheck, logoutUser } from "../public_components/Authentication/cookieHandling";
 
 function Header() {
   const navigate = useNavigate();

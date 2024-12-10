@@ -2,22 +2,25 @@ import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
+  TextField,
+  Button,
   List,
   ListItem,
   ListItemText,
   IconButton,
-  Modal,
-  TextField,
-  Button,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogContentText,
   DialogActions,
-  MenuItem,
+  Alert,
 } from "@mui/material";
 import { Delete, Edit } from "@mui/icons-material";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 
 const CharityStaffManagement = () => {
@@ -32,7 +35,9 @@ const CharityStaffManagement = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState(null);
 
   useEffect(() => {
@@ -50,26 +55,85 @@ const CharityStaffManagement = () => {
     }
   };
 
-  const handleAddStaff = async () => {
-    if (!staffData.fullName || !staffData.email || !staffData.phone || !staffData.position || !staffData.password) {
-      alert("Please fill out all required fields.");
-      return;
+  const validateData = () => {
+    const { fullName, email, phone, position, password } = staffData;
+
+    if (!fullName.trim() || !email.trim() || !phone.trim() || !position.trim() || !password.trim()) {
+      setErrorMessage("Please fill out all required fields.");
+      return false;
     }
 
+    const nameRegex = /^[a-zA-Z\s'-]{2,}$/;
+
+    if (!nameRegex.test(fullName)) {
+      setErrorMessage("Full name must contain at least 2 alphabetic characters and no digits.");
+      return false;
+    }
+
+    if (!nameRegex.test(position)) {
+      setErrorMessage("Position must contain at least 2 alphabetic characters and no digits.");
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrorMessage("Please enter a valid email address.");
+      return false;
+    }
+
+    const phoneRegex = /^[0-9]{10,15}$/;
+    if (!phoneRegex.test(phone)) {
+      setErrorMessage("Phone number must be 10-15 digits long.");
+      return false;
+    }
+
+    setErrorMessage("");
+    return true;
+  };
+
+  const checkForDuplicates = async () => {
+    const staffCollection = collection(db, "CharityStaff");
+    const emailQuery = query(staffCollection, where("email", "==", staffData.email));
+    const phoneQuery = query(staffCollection, where("phone", "==", staffData.phone));
+
+    const emailSnapshot = await getDocs(emailQuery);
+    const phoneSnapshot = await getDocs(phoneQuery);
+
+    if (!emailSnapshot.empty && (!isEditing || editingStaffId !== emailSnapshot.docs[0].id)) {
+      setErrorMessage("A staff member with this email already exists.");
+      return true;
+    }
+
+    if (!phoneSnapshot.empty && (!isEditing || editingStaffId !== phoneSnapshot.docs[0].id)) {
+      setErrorMessage("A staff member with this phone number already exists.");
+      return true;
+    }
+
+    return false;
+  };
+
+  const handleAddStaff = async () => {
+    if (!validateData()) return;
+
+    const isDuplicate = await checkForDuplicates();
+    if (isDuplicate) return;
+
     try {
+      const sanitizedData = {
+        ...staffData,
+        fullName: staffData.fullName.trim(),
+        email: staffData.email.trim(),
+        phone: staffData.phone.trim(),
+        position: staffData.position.trim(),
+        password: staffData.password.trim(),
+      };
       const staffCollection = collection(db, "CharityStaff");
-      await addDoc(staffCollection, { ...staffData });
+      await addDoc(staffCollection, sanitizedData);
       fetchStaff();
-      setStaffData({
-        fullName: "",
-        email: "",
-        phone: "",
-        position: "",
-        gender: "Female",
-        password: "",
-      });
+      setSuccessMessage("Staff member added successfully!");
+      resetForm();
     } catch (error) {
-      console.error("Error adding staff:", error);
+      console.error("Error adding staff member:", error);
     }
   };
 
@@ -80,35 +144,51 @@ const CharityStaffManagement = () => {
   };
 
   const handleSaveEdit = async () => {
-    if (!editingStaffId) return;
+    if (!validateData()) return;
+
+    const isDuplicate = await checkForDuplicates();
+    if (isDuplicate) return;
 
     try {
+      const sanitizedData = {
+        ...staffData,
+        fullName: staffData.fullName.trim(),
+        email: staffData.email.trim(),
+        phone: staffData.phone.trim(),
+        position: staffData.position.trim(),
+        password: staffData.password.trim(),
+      };
       const staffDoc = doc(db, "CharityStaff", editingStaffId);
-      await updateDoc(staffDoc, { ...staffData });
+      await updateDoc(staffDoc, sanitizedData);
       fetchStaff();
-      setIsEditing(false);
-      setEditingStaffId(null);
-      setStaffData({
-        fullName: "",
-        email: "",
-        phone: "",
-        position: "",
-        gender: "Female",
-        password: "",
-      });
+      setSuccessMessage("Staff member updated successfully!");
+      resetForm();
     } catch (error) {
-      console.error("Error updating staff:", error);
+      console.error("Error updating staff member:", error);
     }
+  };
+
+  const resetForm = () => {
+    setStaffData({
+      fullName: "",
+      email: "",
+      phone: "",
+      position: "",
+      gender: "Female",
+      password: "",
+    });
+    setIsEditing(false);
+    setEditingStaffId(null);
   };
 
   const handleOpenDeleteDialog = (member) => {
     setStaffToDelete(member);
-    setDialogOpen(true);
+    setDeleteDialogOpen(true);
   };
 
   const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
     setStaffToDelete(null);
-    setDialogOpen(false);
   };
 
   const handleDeleteStaff = async () => {
@@ -118,8 +198,9 @@ const CharityStaffManagement = () => {
       const staffDoc = doc(db, "CharityStaff", staffToDelete.id);
       await deleteDoc(staffDoc);
       fetchStaff();
+      setSuccessMessage("Staff member deleted successfully!");
     } catch (error) {
-      console.error("Error deleting staff:", error);
+      console.error("Error deleting staff member:", error);
     } finally {
       handleCloseDeleteDialog();
     }
@@ -136,16 +217,19 @@ const CharityStaffManagement = () => {
         Manage Charity Staff
       </Typography>
 
+      {errorMessage && <Alert severity="error" sx={{ mb: 2 }}>{errorMessage}</Alert>}
+      {successMessage && <Alert severity="success" sx={{ mb: 2 }}>{successMessage}</Alert>}
+
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
         <TextField
-          label="Full Name"
+          label="Full Name *"
           name="fullName"
           value={staffData.fullName}
           onChange={handleInputChange}
           fullWidth
         />
         <TextField
-          label="Email"
+          label="Email *"
           name="email"
           type="email"
           value={staffData.email}
@@ -153,32 +237,28 @@ const CharityStaffManagement = () => {
           fullWidth
         />
         <TextField
-          label="Phone"
+          label="Phone *"
           name="phone"
           value={staffData.phone}
           onChange={handleInputChange}
           fullWidth
         />
         <TextField
-          label="Position"
+          label="Position *"
           name="position"
           value={staffData.position}
           onChange={handleInputChange}
           fullWidth
         />
+        <FormControl fullWidth>
+          <InputLabel>Gender</InputLabel>
+          <Select name="gender" value={staffData.gender} onChange={handleInputChange}>
+            <MenuItem value="Female">Female</MenuItem>
+            <MenuItem value="Male">Male</MenuItem>
+          </Select>
+        </FormControl>
         <TextField
-          label="Gender"
-          name="gender"
-          value={staffData.gender}
-          onChange={handleInputChange}
-          select
-          fullWidth
-        >
-          <MenuItem value="Female">Female</MenuItem>
-          <MenuItem value="Male">Male</MenuItem>
-        </TextField>
-        <TextField
-          label="Temporary Password"
+          label="Temporary Password *"
           name="password"
           type="password"
           value={staffData.password}
@@ -208,9 +288,7 @@ const CharityStaffManagement = () => {
             }}
           >
             <ListItemText
-              primary={
-                <Typography sx={{ color: "#7B3F3F" }}>{member.fullName}</Typography>
-              }
+              primary={<Typography sx={{ color: "#7B3F3F" }}>{member.fullName}</Typography>}
               secondary={
                 <>
                   <Typography sx={{ color: "black" }}>Email: {member.email}</Typography>
@@ -230,20 +308,19 @@ const CharityStaffManagement = () => {
         ))}
       </List>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDeleteDialog}>
+      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete the staff member{" "}
-            <strong>{staffToDelete?.fullName}</strong>? This action cannot be undone.
+            Are you sure you want to delete the staff member "{staffToDelete?.fullName}"? This action
+            cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDeleteDialog} color="secondary">
             Cancel
           </Button>
-          <Button onClick={handleDeleteStaff} color="error" autoFocus>
+          <Button onClick={handleDeleteStaff} color="error">
             Delete
           </Button>
         </DialogActions>

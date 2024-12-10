@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
-import { existingLoginCheck, getCookies } from "./public/Authentication/cookieHandling";
+import { existingLoginCheck, getCookies } from "./public_components/Authentication/cookieHandling";
 
 const db = getFirestore();
 

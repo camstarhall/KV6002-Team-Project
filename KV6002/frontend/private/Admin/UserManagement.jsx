@@ -143,7 +143,7 @@ const UserManagement = () => {
                   </Typography>
                   {user.employmentStatus === "Employed" && (
                     <Typography sx={{ color: "black" }}>
-                      Annual Salary: {user.annualSalary}
+                      Monthly Salary: RM {user.monthlySalary}
                     </Typography>
                   )}
                 </>
@@ -231,9 +231,9 @@ const UserManagement = () => {
           />
           {editUser?.employmentStatus === "Employed" && (
             <TextField
-              label="Annual Salary"
-              name="annualSalary"
-              value={editUser?.annualSalary || ""}
+              label="Monthly Salary (RM)"
+              name="monthlySalary"
+              value={editUser?.monthlySalary || ""}
               onChange={handleInputChange}
               fullWidth
               sx={{ mb: 2 }}

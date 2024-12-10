@@ -17,16 +17,16 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Alert,
 } from "@mui/material";
 import { Delete, Edit } from "@mui/icons-material";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, query, where, doc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 
 const LocalLeaderManagement = () => {
   const [leaders, setLeaders] = useState([]);
   const [leaderData, setLeaderData] = useState({
     fullName: "",
-    dateOfBirth: "",
     email: "",
     phone: "",
     gender: "Female",
@@ -34,17 +34,16 @@ const LocalLeaderManagement = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editingLeaderId, setEditingLeaderId] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leaderToDelete, setLeaderToDelete] = useState(null);
 
-  // Fetch leaders from Firestore
   useEffect(() => {
     fetchLeaders();
   }, []);
 
   const fetchLeaders = async () => {
-    setLoading(true);
     try {
       const leadersCollection = collection(db, "LocalLeaders");
       const leaderDocs = await getDocs(leadersCollection);
@@ -52,35 +51,79 @@ const LocalLeaderManagement = () => {
       setLeaders(leaderData);
     } catch (error) {
       console.error("Error fetching leaders:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleAddLeader = async () => {
-    if (
-      !leaderData.fullName ||
-      !leaderData.email ||
-      !leaderData.phone ||
-      !leaderData.dateOfBirth ||
-      !leaderData.password
-    ) {
-      alert("Please fill out all required fields.");
-      return;
+  const validateData = () => {
+    const { fullName, email, phone, password } = leaderData;
+
+    if (!fullName.trim() || !email.trim() || !phone.trim() || !password.trim()) {
+      setErrorMessage("Please fill out all required fields.");
+      return false;
     }
 
+    const nameRegex = /^[a-zA-Z\s'-]{2,}$/;
+    if (!nameRegex.test(fullName)) {
+      setErrorMessage("Full name must contain at least 2 alphabetic characters and no digits.");
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrorMessage("Please enter a valid email address.");
+      return false;
+    }
+
+    const phoneRegex = /^[0-9]{10,15}$/;
+    if (!phoneRegex.test(phone)) {
+      setErrorMessage("Phone number must be 10-15 digits long.");
+      return false;
+    }
+
+    setErrorMessage("");
+    return true;
+  };
+
+  const checkForDuplicates = async () => {
+    const leadersCollection = collection(db, "LocalLeaders");
+    const emailQuery = query(leadersCollection, where("email", "==", leaderData.email));
+    const phoneQuery = query(leadersCollection, where("phone", "==", leaderData.phone));
+
+    const emailSnapshot = await getDocs(emailQuery);
+    const phoneSnapshot = await getDocs(phoneQuery);
+
+    if (!emailSnapshot.empty && (!isEditing || editingLeaderId !== emailSnapshot.docs[0].id)) {
+      setErrorMessage("A leader with this email already exists.");
+      return true;
+    }
+
+    if (!phoneSnapshot.empty && (!isEditing || editingLeaderId !== phoneSnapshot.docs[0].id)) {
+      setErrorMessage("A leader with this phone number already exists.");
+      return true;
+    }
+
+    return false;
+  };
+
+  const handleAddLeader = async () => {
+    if (!validateData()) return;
+
+    const isDuplicate = await checkForDuplicates();
+    if (isDuplicate) return;
+
     try {
+      const sanitizedData = {
+        ...leaderData,
+        fullName: leaderData.fullName.trim(),
+        email: leaderData.email.trim(),
+        phone: leaderData.phone.trim(),
+        password: leaderData.password.trim(),
+      };
       const leadersCollection = collection(db, "LocalLeaders");
-      await addDoc(leadersCollection, leaderData);
+      await addDoc(leadersCollection, sanitizedData);
       fetchLeaders();
-      setLeaderData({
-        fullName: "",
-        dateOfBirth: "",
-        email: "",
-        phone: "",
-        gender: "Female",
-        password: "",
-      });
+      setSuccessMessage("Leader added successfully!");
+      resetForm();
     } catch (error) {
       console.error("Error adding leader:", error);
     }
@@ -93,25 +136,39 @@ const LocalLeaderManagement = () => {
   };
 
   const handleSaveEdit = async () => {
-    if (!editingLeaderId) return;
+    if (!validateData()) return;
+
+    const isDuplicate = await checkForDuplicates();
+    if (isDuplicate) return;
 
     try {
+      const sanitizedData = {
+        ...leaderData,
+        fullName: leaderData.fullName.trim(),
+        email: leaderData.email.trim(),
+        phone: leaderData.phone.trim(),
+        password: leaderData.password.trim(),
+      };
       const leaderDoc = doc(db, "LocalLeaders", editingLeaderId);
-      await updateDoc(leaderDoc, leaderData);
+      await updateDoc(leaderDoc, sanitizedData);
       fetchLeaders();
-      setIsEditing(false);
-      setEditingLeaderId(null);
-      setLeaderData({
-        fullName: "",
-        dateOfBirth: "",
-        email: "",
-        phone: "",
-        gender: "Female",
-        password: "",
-      });
+      setSuccessMessage("Leader updated successfully!");
+      resetForm();
     } catch (error) {
       console.error("Error updating leader:", error);
     }
+  };
+
+  const resetForm = () => {
+    setLeaderData({
+      fullName: "",
+      email: "",
+      phone: "",
+      gender: "Female",
+      password: "",
+    });
+    setIsEditing(false);
+    setEditingLeaderId(null);
   };
 
   const handleOpenDeleteDialog = (leader) => {
@@ -131,6 +188,7 @@ const LocalLeaderManagement = () => {
       const leaderDoc = doc(db, "LocalLeaders", leaderToDelete.id);
       await deleteDoc(leaderDoc);
       fetchLeaders();
+      setSuccessMessage("Leader deleted successfully!");
     } catch (error) {
       console.error("Error deleting leader:", error);
     } finally {
@@ -144,30 +202,24 @@ const LocalLeaderManagement = () => {
   };
 
   return (
-    <Box sx={{ backgroundColor: "#f8e8e8", padding: "1rem", borderRadius: "8px" }}>
+    <Box sx={{ backgroundColor: "#f8e8e8", padding: "2rem", borderRadius: "8px" }}>
       <Typography variant="h5" sx={{ color: "#7B3F3F", mb: 2 }}>
         Manage Local Leaders
       </Typography>
 
+      {errorMessage && <Alert severity="error" sx={{ mb: 2 }}>{errorMessage}</Alert>}
+      {successMessage && <Alert severity="success" sx={{ mb: 2 }}>{successMessage}</Alert>}
+
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
         <TextField
-          label="Full Name"
+          label="Full Name *"
           name="fullName"
           value={leaderData.fullName}
           onChange={handleInputChange}
           fullWidth
         />
         <TextField
-          label="Date of Birth"
-          name="dateOfBirth"
-          type="date"
-          value={leaderData.dateOfBirth}
-          onChange={handleInputChange}
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-        />
-        <TextField
-          label="Email"
+          label="Email *"
           name="email"
           type="email"
           value={leaderData.email}
@@ -175,7 +227,7 @@ const LocalLeaderManagement = () => {
           fullWidth
         />
         <TextField
-          label="Phone"
+          label="Phone *"
           name="phone"
           value={leaderData.phone}
           onChange={handleInputChange}
@@ -189,7 +241,7 @@ const LocalLeaderManagement = () => {
           </Select>
         </FormControl>
         <TextField
-          label="Temporary Password"
+          label="Temporary Password *"
           name="password"
           type="password"
           value={leaderData.password}
@@ -225,7 +277,6 @@ const LocalLeaderManagement = () => {
                   <Typography sx={{ color: "black" }}>Email: {leader.email}</Typography>
                   <Typography sx={{ color: "black" }}>Phone: {leader.phone}</Typography>
                   <Typography sx={{ color: "black" }}>Gender: {leader.gender}</Typography>
-                  <Typography sx={{ color: "black" }}>Date of Birth: {leader.dateOfBirth}</Typography>
                 </>
               }
             />
@@ -239,7 +290,6 @@ const LocalLeaderManagement = () => {
         ))}
       </List>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>

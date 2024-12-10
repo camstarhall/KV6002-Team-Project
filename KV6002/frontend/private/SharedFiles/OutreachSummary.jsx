@@ -39,6 +39,7 @@ const OutreachSummary = () => {
           let leaderName = "Unknown Leader";
           let leaderEmail = "N/A";
 
+          // Fetch event title
           try {
             const eventDoc = await getDoc(doc(db, "Events", log.eventId));
             if (eventDoc.exists()) {
@@ -49,8 +50,9 @@ const OutreachSummary = () => {
             console.error("Error fetching event data for log:", log.id, eventError);
           }
 
+          // Fetch leader details
           try {
-            const leaderDoc = await getDoc(doc(db, "Users", log.leaderId));
+            const leaderDoc = await getDoc(doc(db, "LocalLeaders", log.leaderId));
             if (leaderDoc.exists()) {
               const leaderData = leaderDoc.data();
               leaderName = leaderData.fullName || "Unknown Leader";

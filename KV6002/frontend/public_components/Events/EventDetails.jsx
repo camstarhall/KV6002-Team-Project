@@ -1,5 +1,6 @@
+// KV6002/frontend/public/Events/EventDetails.jsx
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -18,16 +19,15 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
-import BookingForm from "./BookingForm"; // Import BookingForm
+import BookingForm from "./BookingForm";
 
 const EventDetails = () => {
   const { id } = useParams(); // Get the event ID from the URL
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showBookingForm, setShowBookingForm] = useState(false); // Toggle for booking form
-  const [currentCapacity, setCurrentCapacity] = useState(0); // Track current bookings
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [currentCapacity, setCurrentCapacity] = useState(0);
 
-  // Fetch event details from Firestore
   const fetchEventDetails = async () => {
     try {
       const eventDoc = doc(db, "Events", id);
@@ -35,7 +35,7 @@ const EventDetails = () => {
 
       if (eventSnapshot.exists()) {
         setEvent({ id: eventSnapshot.id, ...eventSnapshot.data() });
-        fetchCurrentCapacity(eventSnapshot.id); // Fetch current bookings
+        fetchCurrentCapacity(eventSnapshot.id);
       } else {
         console.error("Event not found");
         setEvent(null);
@@ -47,7 +47,6 @@ const EventDetails = () => {
     }
   };
 
-  // Fetch current bookings for the event
   const fetchCurrentCapacity = async (eventId) => {
     try {
       const bookingsQuery = query(
@@ -56,7 +55,7 @@ const EventDetails = () => {
         where("status", "==", "Booked")
       );
       const bookingsSnapshot = await getDocs(bookingsQuery);
-      setCurrentCapacity(bookingsSnapshot.docs.length); // Update capacity
+      setCurrentCapacity(bookingsSnapshot.docs.length);
     } catch (error) {
       console.error("Error fetching event capacity:", error);
     }
@@ -70,10 +69,7 @@ const EventDetails = () => {
     return (
       <Box sx={{ textAlign: "center", mt: 4 }}>
         <CircularProgress />
-        <Typography
-          variant="body1"
-          sx={{ mt: 2 }}
-        >
+        <Typography variant="body1" sx={{ mt: 2 }}>
           Loading event details...
         </Typography>
       </Box>
@@ -95,25 +91,26 @@ const EventDetails = () => {
     <Box
       sx={{
         padding: "2rem",
-        backgroundColor: "#f8e8e8", // Light pink for the overall page
+        backgroundColor: "#f8e8e8",
         minHeight: "100vh",
       }}
     >
+      {/* Back to Events Button */}
+      <Box sx={{ mb: 2 }}>
+        <Link to="/events" style={{ textDecoration: "none" }}>
+          <Button variant="outlined" color="primary">
+            Back to Events
+          </Button>
+        </Link>
+      </Box>
+
       {!showBookingForm ? (
-        <Grid
-          container
-          spacing={4}
-          justifyContent="center"
-        >
-          <Grid
-            item
-            xs={12}
-            md={6}
-          >
+        <Grid container spacing={4} justifyContent="center">
+          <Grid item xs={12} md={6}>
             <Card
               sx={{
                 boxShadow: 3,
-                backgroundColor: "#ffffff", // White background for event details card
+                backgroundColor: "#ffffff",
                 padding: "2rem",
               }}
             >
@@ -139,9 +136,7 @@ const EventDetails = () => {
                 </Typography>
                 <Typography sx={{ mb: 2, color: "#555" }}>
                   <strong>Spaces Left:</strong>{" "}
-                  {isFullyBooked
-                    ? "No spaces left"
-                    : `${spacesLeft} spaces available`}
+                  {isFullyBooked ? "No spaces left" : `${spacesLeft} spaces available`}
                 </Typography>
                 <Typography sx={{ mb: 3, color: "#555" }}>
                   <strong>Description:</strong> {event.Description}
@@ -151,8 +146,8 @@ const EventDetails = () => {
                   variant="contained"
                   color={isFullyBooked ? "secondary" : "primary"}
                   fullWidth
-                  onClick={() => !isFullyBooked && setShowBookingForm(true)} // Show booking form if not fully booked
-                  disabled={isFullyBooked} // Disable if fully booked
+                  onClick={() => !isFullyBooked && setShowBookingForm(true)}
+                  disabled={isFullyBooked}
                 >
                   {isFullyBooked ? "Fully Booked" : "Book / RSVP"}
                 </Button>
@@ -160,11 +155,7 @@ const EventDetails = () => {
             </Card>
           </Grid>
 
-          <Grid
-            item
-            xs={12}
-            md={6}
-          >
+          <Grid item xs={12} md={6}>
             <Box
               component="img"
               src={event.imageURL || "/placeholder.png"}
@@ -180,8 +171,8 @@ const EventDetails = () => {
         </Grid>
       ) : (
         <BookingForm
-          event={event} // Pass event details as props
-          onCancel={() => setShowBookingForm(false)} // Handle cancel action
+          event={event}
+          onCancel={() => setShowBookingForm(false)}
         />
       )}
     </Box>

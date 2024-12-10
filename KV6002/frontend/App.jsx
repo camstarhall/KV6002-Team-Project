@@ -2,17 +2,17 @@ import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Header from "./layout/Header";
 import Footer from "./layout/Footer";
-import Home from "./public/Home";
-import Login from "./public/Authentication/Login";
-import Register from "./public/Register";
-import EventList from "./public/Events/EventList";
-import EventDetails from "./public/Events/EventDetails";
+import Home from "./public_components/Home";
+import Login from "./public_components/Authentication/Login";
+import Register from "./public_components/Register";
+import EventList from "./public_components/Events/EventList";
+import EventDetails from "./public_components/Events/EventDetails";
 import AdminDashboard from "./private/Admin/AdminDashboard";
 import LeaderDashboard from "./private/LocalLeader/LeaderDashboard";
 import CharityStaffDashboard from "./private/CharityStaff/CharityStaffDashboard"; // Import Staff Dashboard
 import UserDashboard from "./private/Admin/UserDashboard";
-import ResetPassword from "./public/Authentication/ResetPassword";
-import Feedback from "./public/Feedback";
+import ResetPassword from "./public_components/Authentication/ResetPassword";
+import Feedback from "./public_components/Feedback";
 
 function App() {
   return (
