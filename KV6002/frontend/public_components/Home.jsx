@@ -32,7 +32,11 @@ function Home() {
 
   return (
     <Box
-      sx={{ textAlign: "center", padding: "2rem", backgroundColor: "#D08C8C" }}
+      sx={{
+        textAlign: "center",
+        padding: { xs: "1rem", sm: "2rem", md: "4rem" }, // Increased padding for larger screens
+        backgroundColor: "#D08C8C",
+      }}
     >
       {/* Grid for Event Cards */}
       <Grid
@@ -53,8 +57,9 @@ function Home() {
             <Grid
               item
               xs={12}
-              sm={6}
-              md={4}
+              sm={8}
+              md={6} // Controls width of cards
+              lg={4}
               key={event.id}
             >
               <EventCard
