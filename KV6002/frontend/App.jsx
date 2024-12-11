@@ -13,6 +13,8 @@ import CharityStaffDashboard from "./private/CharityStaff/CharityStaffDashboard"
 import UserDashboard from "./private/Admin/UserDashboard";
 import ResetPassword from "./public_components/Authentication/ResetPassword";
 import Feedback from "./public_components/Feedback";
+import About from "./public_components/About";
+import Help from "./public_components/Help"; // Import Help component
 
 function App() {
   return (
@@ -30,6 +32,8 @@ function App() {
         <Route path="/user-dashboard" element={<UserDashboard />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/feedback" element={<Feedback />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/help" element={<Help />} /> {/* Added Route for Help */}
       </Routes>
       <Footer />
     </Router>

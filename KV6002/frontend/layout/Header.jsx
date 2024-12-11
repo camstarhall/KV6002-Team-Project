@@ -1,4 +1,3 @@
-// KV6002/frontend/layout/Header.jsx
 import React from "react";
 import { Box, Typography, Button } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
@@ -56,7 +55,6 @@ function Header() {
             width: "100%",
           }}
         >
-          {/* Public links: Home, Events, Feedback always visible */}
           <Link to="/" style={navLinkStyle}>
             Home
           </Link>
@@ -66,12 +64,12 @@ function Header() {
           <Link to="/feedback" style={navLinkStyle}>
             Feedback
           </Link>
-
-          {/* Removed Admin/Leader/Staff Dashboard links entirely 
-              as per request, user must login and system directs them automatically. 
-              No dashboard links in the header. 
-          */}
-
+          <Link to="/about" style={navLinkStyle}>
+            About Us
+          </Link>
+          <Link to="/help" style={navLinkStyle}>
+            Help
+          </Link>
           {isLoggedIn ? (
             <Button
               style={navLinkStyle}

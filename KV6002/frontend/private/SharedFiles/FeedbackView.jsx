@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Card, CardContent, IconButton, CircularProgress } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  IconButton,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+} from "@mui/material";
 import { Delete } from "@mui/icons-material";
 import { collection, getDocs, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
@@ -7,6 +20,8 @@ import { db } from "../../../firebaseConfig";
 const FeedbackView = () => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [feedbackToDelete, setFeedbackToDelete] = useState(null);
 
   useEffect(() => {
     fetchFeedbacks();
@@ -24,7 +39,6 @@ const FeedbackView = () => {
           let eventTitle = "Unknown Event";
 
           try {
-            // Fetch the event's title based on the `eventId` in the feedback document
             const eventDoc = await getDoc(doc(db, "Events", feedback.eventId));
             if (eventDoc.exists()) {
               const eventData = eventDoc.data();
@@ -50,13 +64,28 @@ const FeedbackView = () => {
     }
   };
 
-  const handleDeleteFeedback = async (feedbackId) => {
+  const handleDeleteFeedback = async () => {
+    if (!feedbackToDelete) return;
+
     try {
-      await deleteDoc(doc(db, "Feedbacks", feedbackId));
-      setFeedbacks(feedbacks.filter((feedback) => feedback.id !== feedbackId));
+      await deleteDoc(doc(db, "Feedbacks", feedbackToDelete.id));
+      setFeedbacks(feedbacks.filter((feedback) => feedback.id !== feedbackToDelete.id));
     } catch (error) {
       console.error("Error deleting feedback:", error);
+    } finally {
+      setDeleteDialogOpen(false);
+      setFeedbackToDelete(null);
     }
+  };
+
+  const openDeleteDialog = (feedback) => {
+    setFeedbackToDelete(feedback);
+    setDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setFeedbackToDelete(null);
   };
 
   return (
@@ -95,7 +124,7 @@ const FeedbackView = () => {
                 Submitted on: {new Date(feedback.createdAt).toLocaleDateString()}
               </Typography>
               <IconButton
-                onClick={() => handleDeleteFeedback(feedback.id)}
+                onClick={() => openDeleteDialog(feedback)}
                 sx={{ position: "absolute", top: "8px", right: "8px", color: "#7B3F3F" }}
               >
                 <Delete />
@@ -104,6 +133,24 @@ const FeedbackView = () => {
           </Card>
         ))
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={closeDeleteDialog}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this feedback? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeDeleteDialog} color="secondary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteFeedback} color="error">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

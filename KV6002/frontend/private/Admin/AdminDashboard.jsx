@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Box, Typography, Tabs, Tab } from "@mui/material";
 import EventManagement from "./EventManagement";
 import RSVPReport from "../SharedFiles/RSVPReport";
-import FeedbackView from "./FeedbackView";
+import FeedbackView from "../SharedFiles/FeedbackView";
 import UserManagement from "./UserManagement";
 import LocalLeaderManagement from "./LocalLeaderManagement";
 import CharityStaffManagement from "./CharityStaffManagement";
