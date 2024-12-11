@@ -6,6 +6,8 @@ import {
   Button,
   MenuItem,
   Alert,
+  Select,
+  InputAdornment,
 } from "@mui/material";
 import {
   collection,
@@ -28,10 +30,19 @@ const BookingForm = ({ event, onCancel }) => {
     address: "",
     employmentStatus: "",
     monthlySalary: "",
+    phoneExtension: "+60", // Default extension (Malaysia)
   });
   const [currentCapacity, setCurrentCapacity] = useState(0);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Phone number extensions
+  const phoneExtensions = [
+    { label: "Malaysia (+60)", value: "60" },
+    { label: "UK (+44)", value: "44" },
+    { label: "USA (+1)", value: "1" },
+    { label: "India (+91)", value: "91" },
+  ];
 
   // Fetch current booking capacity
   const fetchCurrentCapacity = async () => {
@@ -58,7 +69,7 @@ const BookingForm = ({ event, onCancel }) => {
   };
 
   const isValidName = (name) => /^[a-zA-Z\s]+$/.test(name.trim());
-  const isValidPhone = (phone) => /^[0-9]{10,15}$/.test(phone.trim());
+  const isValidPhone = (phone) => /^[0-9]{7,15}$/.test(phone.trim());
   const isValidEmail = (email) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const isValidAddress = (address) => address.trim().length >= 5;
@@ -107,6 +118,8 @@ const BookingForm = ({ event, onCancel }) => {
       return;
     }
 
+    const fullPhoneNumber = formData.phoneExtension + formData.phone;
+
     try {
       const usersCollection = collection(db, "Users");
       const bookingsCollection = collection(db, "Bookings");
@@ -114,7 +127,7 @@ const BookingForm = ({ event, onCancel }) => {
       // Check if the phone number is already used for an existing user
       const existingUserQuery = query(
         usersCollection,
-        where("phone", "==", formData.phone)
+        where("phone", "==", fullPhoneNumber)
       );
       const existingUserSnapshot = await getDocs(existingUserQuery);
 
@@ -127,7 +140,7 @@ const BookingForm = ({ event, onCancel }) => {
           gender: formData.gender,
           dateOfBirth: formData.dateOfBirth,
           email: formData.email || null,
-          phone: formData.phone,
+          phone: fullPhoneNumber,
           address: formData.address,
           employmentStatus: formData.employmentStatus,
           monthlySalary: formData.monthlySalary || null,
@@ -142,7 +155,7 @@ const BookingForm = ({ event, onCancel }) => {
       const existingBookingQuery = query(
         bookingsCollection,
         where("eventId", "==", event.id),
-        where("phone", "==", formData.phone)
+        where("phone", "==", fullPhoneNumber)
       );
       const existingBookingSnapshot = await getDocs(existingBookingQuery);
 
@@ -171,7 +184,7 @@ const BookingForm = ({ event, onCancel }) => {
       await addDoc(bookingsCollection, {
         eventId: event.id,
         eventTitle: event.Title,
-        phone: formData.phone,
+        phone: fullPhoneNumber,
         email: formData.email || null,
         status: "Booked",
         bookingDate: new Date().toISOString(),
@@ -188,6 +201,7 @@ const BookingForm = ({ event, onCancel }) => {
         address: "",
         employmentStatus: "",
         monthlySalary: "",
+        phoneExtension: "+60",
       });
       fetchCurrentCapacity();
     } catch (err) {
@@ -210,12 +224,29 @@ const BookingForm = ({ event, onCancel }) => {
         mt: 4,
       }}
     >
-      <Typography variant="h6" sx={{ mb: 2, color: "#7B3F3F" }}>
+      <Typography
+        variant="h6"
+        sx={{ mb: 2, color: "#7B3F3F" }}
+      >
         Book / RSVP for {event.Title}
       </Typography>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+        >
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert
+          severity="success"
+          sx={{ mb: 2 }}
+        >
+          {success}
+        </Alert>
+      )}
 
       <TextField
         label="Full Name"
@@ -267,6 +298,27 @@ const BookingForm = ({ event, onCancel }) => {
         fullWidth
         required
         sx={{ mb: 2 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Select
+                name="phoneExtension"
+                value={formData.phoneExtension}
+                onChange={handleInputChange}
+                sx={{ mr: 1 }}
+              >
+                {phoneExtensions.map((ext) => (
+                  <MenuItem
+                    key={ext.value}
+                    value={ext.value}
+                  >
+                    {ext.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </InputAdornment>
+          ),
+        }}
       />
       <TextField
         label="Home Address"
@@ -304,10 +356,18 @@ const BookingForm = ({ event, onCancel }) => {
       )}
 
       <Box sx={{ display: "flex", gap: 2 }}>
-        <Button type="submit" variant="contained" color="primary">
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+        >
           Submit
         </Button>
-        <Button onClick={onCancel} variant="outlined" color="secondary">
+        <Button
+          onClick={onCancel}
+          variant="outlined"
+          color="secondary"
+        >
           Cancel
         </Button>
       </Box>
