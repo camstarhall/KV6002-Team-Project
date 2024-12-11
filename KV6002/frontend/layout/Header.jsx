@@ -2,7 +2,10 @@ import React from "react";
 import { Box, Typography, Button } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import charityLogo from "../assets/Rose_logo.png";
-import { existingLoginCheck, logoutUser } from "../public_components/Authentication/cookieHandling";
+import {
+  existingLoginCheck,
+  logoutUser,
+} from "../public_components/Authentication/cookieHandling";
 
 function Header() {
   const navigate = useNavigate();
@@ -25,12 +28,39 @@ function Header() {
           padding: "1rem",
         }}
       >
-        <Typography variant="h6" sx={{ color: "white" }}>
+        <Typography
+          variant="h6"
+          sx={{ color: "white" }}
+        >
           Together we can make a difference
         </Typography>
-        <Button variant="contained" sx={{ backgroundColor: "green", color: "white" }}>
-          Language
-        </Button>
+
+        {/* Grouped Buttons */}
+        <Box
+          sx={{
+            display: "flex",
+            gap: "0.5rem",
+          }}
+        >
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: "green", color: "white" }}
+          >
+            Donate
+          </Button>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: "green", color: "white" }}
+          >
+            Zakat
+          </Button>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: "green", color: "white" }}
+          >
+            Language
+          </Button>
+        </Box>
       </Box>
 
       {/* Navigation bar */}
@@ -55,19 +85,34 @@ function Header() {
             width: "100%",
           }}
         >
-          <Link to="/" style={navLinkStyle}>
+          <Link
+            to="/"
+            style={navLinkStyle}
+          >
             Home
           </Link>
-          <Link to="/events" style={navLinkStyle}>
+          <Link
+            to="/events"
+            style={navLinkStyle}
+          >
             Events
           </Link>
-          <Link to="/feedback" style={navLinkStyle}>
+          <Link
+            to="/feedback"
+            style={navLinkStyle}
+          >
             Feedback
           </Link>
-          <Link to="/about" style={navLinkStyle}>
+          <Link
+            to="/about"
+            style={navLinkStyle}
+          >
             About Us
           </Link>
-          <Link to="/help" style={navLinkStyle}>
+          <Link
+            to="/help"
+            style={navLinkStyle}
+          >
             Help
           </Link>
           {isLoggedIn ? (
@@ -79,7 +124,10 @@ function Header() {
               Logout
             </Button>
           ) : (
-            <Link to="/login" style={navLinkStyle}>
+            <Link
+              to="/login"
+              style={navLinkStyle}
+            >
               Login
             </Link>
           )}

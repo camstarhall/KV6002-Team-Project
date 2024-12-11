@@ -62,7 +62,7 @@ function Home() {
                   title: event.Title,
                   date: event.Date,
                   description: event.Description,
-                  imageUrl: event.imageUrl,
+                  imageUrl: event.imageURL,
                 }}
               />
             </Grid>

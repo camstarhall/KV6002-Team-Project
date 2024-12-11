@@ -16,7 +16,7 @@ const EventCard = ({ event }) => {
       <CardMedia
         component="img"
         height="300" // Increased height for better visibility
-        image="https://media.istockphoto.com/id/1498170916/photo/a-couple-is-taking-a-bag-of-food-at-the-food-and-clothes-bank.jpg?s=1024x1024&w=is&k=20&c=ASXbBbzgxFx83RgmjnQoHssc6zTlPZlhZgSnKJhOPQ0=" // Replace with your placeholder image path
+        image={event.imageUrl} // On the db attribute it is imageURL but the Home component passes it in as imageUrl (not capitalised)
         alt={event.title}
         sx={{ objectFit: "cover" }}
       />
