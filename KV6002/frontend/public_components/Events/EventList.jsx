@@ -99,11 +99,20 @@ const EventList = () => {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
+          flexDirection: { xs: "column", sm: "row" }, // Column for mobile, row for larger screens
           gap: 2,
           mb: 4,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        {/* Show Past Events Option */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            mb: { xs: 2, sm: 0 }, // Add bottom margin on phones
+          }}
+        >
           <Checkbox
             checked={showPastEvents}
             onChange={(e) => setShowPastEvents(e.target.checked)}
@@ -113,58 +122,69 @@ const EventList = () => {
             Show Past Events
           </Typography>
         </Box>
-        <FormControl
+
+        {/* Filtering Options */}
+        <Box
           sx={{
-            minWidth: 150,
-            backgroundColor: "green",
-            borderRadius: "4px",
-            "& .MuiInputBase-root": {
-              color: "white",
-            },
-            "& .MuiInputLabel-root": {
-              color: "white", // Ensure label is visible
-            },
-            "& .MuiSvgIcon-root": {
-              color: "white", // Arrow color
-            },
+            display: "flex",
+            flexDirection: "row", // Always keep filtering options side by side
+            gap: 2,
           }}
         >
-          <InputLabel id="filter-method-label">Filter By</InputLabel>
-          <Select
-            labelId="filter-method-label"
-            value={filterMethod}
-            onChange={(e) => setFilterMethod(e.target.value)}
+          <FormControl
+            sx={{
+              minWidth: 150,
+              backgroundColor: "green",
+              borderRadius: "4px",
+              "& .MuiInputBase-root": {
+                color: "white",
+              },
+              "& .MuiInputLabel-root": {
+                color: "white", // Ensure label is visible
+              },
+              "& .MuiSvgIcon-root": {
+                color: "white", // Arrow color
+              },
+            }}
           >
-            <MenuItem value="Date">Date</MenuItem>
-            <MenuItem value="Alphabetical">Alphabetical</MenuItem>
-          </Select>
-        </FormControl>
-        <FormControl
-          sx={{
-            minWidth: 150,
-            backgroundColor: "green",
-            borderRadius: "4px",
-            "& .MuiInputBase-root": {
-              color: "white",
-            },
-            "& .MuiInputLabel-root": {
-              color: "white", // Ensure label is visible
-            },
-            "& .MuiSvgIcon-root": {
-              color: "white", // Arrow color
-            },
-          }}
-        >
-          <InputLabel id="sort-order-label">Sort Order</InputLabel>
-          <Select
-            labelId="sort-order-label"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
+            <InputLabel id="filter-method-label">Filter By</InputLabel>
+            <Select
+              labelId="filter-method-label"
+              value={filterMethod}
+              onChange={(e) => setFilterMethod(e.target.value)}
+            >
+              <MenuItem value="Date">Date</MenuItem>
+              <MenuItem value="Alphabetical">Alphabetical</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl
+            sx={{
+              minWidth: 150,
+              backgroundColor: "green",
+              borderRadius: "4px",
+              "& .MuiInputBase-root": {
+                color: "white",
+              },
+              "& .MuiInputLabel-root": {
+                color: "white", // Ensure label is visible
+              },
+              "& .MuiSvgIcon-root": {
+                color: "white", // Arrow color
+              },
+            }}
           >
-            <MenuItem value="Ascending">Ascending</MenuItem>
-            <MenuItem value="Descending">Descending</MenuItem>
-          </Select>
-        </FormControl>
+            <InputLabel id="sort-order-label">Sort Order</InputLabel>
+            <Select
+              labelId="sort-order-label"
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+            >
+              <MenuItem value="Ascending">Ascending</MenuItem>
+              <MenuItem value="Descending">Descending</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
       </Box>
 
       {/* Event Cards */}
