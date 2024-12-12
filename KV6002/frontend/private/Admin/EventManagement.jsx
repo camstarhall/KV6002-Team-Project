@@ -7,13 +7,7 @@ import {
   Card,
   CardContent,
   IconButton,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   TextField,
-  LinearProgress,
 } from "@mui/material";
 import {
   collection,
@@ -24,12 +18,12 @@ import {
   doc,
 } from "firebase/firestore";
 import { db, storage } from "../../../firebaseConfig";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 function EventManagement() {
   const [events, setEvents] = useState([]);
-  const [filteredEvents, setFilteredEvents] = useState([]);
   const [formData, setFormData] = useState({
     Title: "",
     Date: "",
@@ -37,22 +31,14 @@ function EventManagement() {
     Description: "",
     imageURL: "",
     Capacity: 0,
+    isRestricted: false,
     Status: "Active", // Default status
-  });
-  const [filters, setFilters] = useState({
-    searchTitle: "",
-    startDate: "",
-    endDate: "",
-    status: "All", // Default to all statuses
   });
   const [isEdit, setIsEdit] = useState(false);
   const [currentEventId, setCurrentEventId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteEventId, setDeleteEventId] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -68,54 +54,10 @@ function EventManagement() {
         ...doc.data(),
       }));
       setEvents(eventsData);
-      setFilteredEvents(eventsData); // Initialize filtered events
     } catch (error) {
       console.error("Error fetching events:", error);
       alert("Failed to fetch events.");
     }
-  };
-
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters({ ...filters, [name]: value });
-  };
-
-  const applyFilters = () => {
-    let filtered = events;
-
-    if (filters.searchTitle) {
-      filtered = filtered.filter((event) =>
-        event.Title.toLowerCase().includes(filters.searchTitle.toLowerCase())
-      );
-    }
-
-    if (filters.startDate) {
-      filtered = filtered.filter(
-        (event) => new Date(event.Date) >= new Date(filters.startDate)
-      );
-    }
-
-    if (filters.endDate) {
-      filtered = filtered.filter(
-        (event) => new Date(event.Date) <= new Date(filters.endDate)
-      );
-    }
-
-    if (filters.status !== "All") {
-      filtered = filtered.filter((event) => event.Status === filters.status);
-    }
-
-    setFilteredEvents(filtered);
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      searchTitle: "",
-      startDate: "",
-      endDate: "",
-      status: "All",
-    });
-    setFilteredEvents(events); // Reset to all events
   };
 
   const handleOpenModal = (event = null) => {
@@ -124,7 +66,6 @@ function EventManagement() {
       setFormData(event);
       setIsEdit(true);
       setCurrentEventId(event.id);
-      setImagePreview(event.imageURL);
     } else {
       setFormData({
         Title: "",
@@ -133,9 +74,9 @@ function EventManagement() {
         Description: "",
         imageURL: "",
         Capacity: 0,
+        isRestricted: false,
         Status: "Active",
       });
-      setImagePreview(null);
       setIsEdit(false);
       setCurrentEventId(null);
     }
@@ -147,30 +88,20 @@ function EventManagement() {
     setIsEdit(false);
     setCurrentEventId(null);
     setUploading(false);
-    setUploadProgress(0);
-    setImagePreview(null);
+    setUploadSuccess(false);
   };
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    const today = new Date();
-    const eventDate = new Date(formData.Date);
-
-    if (eventDate < today.setHours(0, 0, 0, 0)) {
-      setError("The event date cannot be in the past. Please select a valid date.");
-      return;
-    }
-
     if (formData.Capacity <= 0) {
       setError("The event capacity must be greater than 0.");
       return;
     }
 
-    const eventsCollection = collection(db, "Events");
-
     try {
+      const eventsCollection = collection(db, "Events");
       if (isEdit && currentEventId) {
         const eventDoc = doc(db, "Events", currentEventId);
         await updateDoc(eventDoc, formData);
@@ -185,81 +116,61 @@ function EventManagement() {
     }
   };
 
-  const handleOpenDeleteDialog = (id) => {
-    setDeleteEventId(id);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleCloseDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    setDeleteEventId(null);
-  };
-
-  const handleDelete = async () => {
+  const handleDelete = async (eventId) => {
     try {
-      if (deleteEventId) {
-        const eventDoc = doc(db, "Events", deleteEventId);
-        await deleteDoc(eventDoc);
-        fetchEvents();
-        handleCloseDeleteDialog();
-      }
+      const eventDoc = doc(db, "Events", eventId);
+      await deleteDoc(eventDoc); // Delete the event
+      fetchEvents(); // Refresh the event list
+      console.log("Event deleted successfully:", eventId);
     } catch (error) {
       console.error("Error deleting event:", error);
       alert("Failed to delete event.");
     }
   };
 
+  const handleUploadImage = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("File size exceeds the 5MB limit.");
+      return;
+    }
+
+    setUploading(true);
+    setUploadSuccess(false);
+
+    const storageRef = ref(storage, `event-images/${Date.now()}-${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const progress =
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log(`Upload is ${progress}% done`);
+      },
+      (error) => {
+        console.error("Upload failed:", error);
+        setUploading(false);
+      },
+      async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        setFormData({ ...formData, imageURL: downloadURL });
+        setUploading(false);
+        setUploadSuccess(true);
+      }
+    );
+  };
+
   return (
     <Box sx={{ padding: "2rem", backgroundColor: "#f8e8e8" }}>
-      <Typography variant="h4" sx={{ color: "#7B3F3F", mb: 3 }}>
+      <Typography
+        variant="h4"
+        sx={{ color: "#7B3F3F", mb: 3 }}
+      >
         Event Management
       </Typography>
-
-      {/* Filters */}
-      <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-        <TextField
-          label="Search by Title"
-          name="searchTitle"
-          value={filters.searchTitle}
-          onChange={handleFilterChange}
-          fullWidth
-        />
-        <TextField
-          label="Start Date"
-          name="startDate"
-          type="date"
-          value={filters.startDate}
-          onChange={handleFilterChange}
-          InputLabelProps={{ shrink: true }}
-        />
-        <TextField
-          label="End Date"
-          name="endDate"
-          type="date"
-          value={filters.endDate}
-          onChange={handleFilterChange}
-          InputLabelProps={{ shrink: true }}
-        />
-        <TextField
-          label="Status"
-          name="status"
-          select
-          value={filters.status}
-          onChange={handleFilterChange}
-          fullWidth
-          sx={{ width: "200px" }}
-        >
-          <option value="All">All</option>
-          <option value="Active">Active</option>
-          <option value="Cancelled">Cancelled</option>
-        </TextField>
-        <Button variant="contained" onClick={applyFilters}>
-          Search
-        </Button>
-        <Button variant="outlined" onClick={clearFilters}>
-          Clear Filters
-        </Button>
-      </Box>
 
       <Button
         variant="contained"
@@ -269,7 +180,7 @@ function EventManagement() {
         Add Event
       </Button>
 
-      {filteredEvents.map((event) => (
+      {events.map((event) => (
         <Card
           key={event.id}
           sx={{
@@ -285,7 +196,8 @@ function EventManagement() {
             <Typography
               variant="h6"
               sx={{
-                textDecoration: event.Status === "Cancelled" ? "line-through" : "none",
+                textDecoration:
+                  event.Status === "Cancelled" ? "line-through" : "none",
               }}
             >
               {event.Title} {event.Status === "Cancelled" && "(Cancelled)"}
@@ -293,6 +205,9 @@ function EventManagement() {
             <Typography>Date: {event.Date}</Typography>
             <Typography>Location: {event.Location}</Typography>
             <Typography>Capacity: {event.Capacity}</Typography>
+            <Typography>
+              Restricted: {event.isRestricted ? "Yes" : "No"}
+            </Typography>
             {event.imageURL && (
               <Box sx={{ mt: 2 }}>
                 <img
@@ -304,17 +219,26 @@ function EventManagement() {
             )}
           </CardContent>
           <Box>
-            <IconButton color="primary" onClick={() => handleOpenModal(event)}>
+            <IconButton
+              color="primary"
+              onClick={() => handleOpenModal(event)}
+            >
               <EditIcon />
             </IconButton>
-            <IconButton color="error" onClick={() => handleOpenDeleteDialog(event.id)}>
+            <IconButton
+              color="error"
+              onClick={() => handleDelete(event.id)}
+            >
               <DeleteIcon />
             </IconButton>
           </Box>
         </Card>
       ))}
 
-      <Modal open={modalOpen} onClose={handleCloseModal}>
+      <Modal
+        open={modalOpen}
+        onClose={handleCloseModal}
+      >
         <Box
           component="form"
           onSubmit={handleFormSubmit}
@@ -327,13 +251,22 @@ function EventManagement() {
             padding: "2rem",
             borderRadius: 2,
             width: { xs: "90%", sm: "500px" },
+            maxHeight: "90vh",
+            overflowY: "auto",
           }}
         >
-          <Typography variant="h6" sx={{ mb: 2 }}>
+          <Typography
+            variant="h6"
+            sx={{ mb: 2 }}
+          >
             {isEdit ? "Edit Event" : "Add Event"}
           </Typography>
           {error && (
-            <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+            <Typography
+              variant="body2"
+              color="error"
+              sx={{ mb: 2 }}
+            >
               {error}
             </Typography>
           )}
@@ -401,28 +334,52 @@ function EventManagement() {
             required
             inputProps={{ min: 0 }}
           />
-          <Button type="submit" variant="contained" fullWidth>
+          <TextField
+            label="Who is this event for?"
+            name="isRestricted"
+            select
+            value={formData.isRestricted ? "Restricted" : "Everyone"}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                isRestricted: e.target.value === "Restricted",
+              })
+            }
+            fullWidth
+            sx={{ mb: 2 }}
+            SelectProps={{
+              native: true,
+            }}
+          >
+            <option value="Everyone">Everyone</option>
+            <option value="Restricted">Just Target Group</option>
+          </TextField>
+          <Button
+            variant={uploadSuccess ? "contained" : "outlined"}
+            color={uploadSuccess ? "success" : "primary"}
+            component="label"
+            fullWidth
+            sx={{ mb: 2 }}
+          >
+            {uploadSuccess
+              ? "Image Uploaded Successfully"
+              : "Upload Event Image"}
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={handleUploadImage}
+            />
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+          >
             {isEdit ? "Update Event" : "Add Event"}
           </Button>
         </Box>
       </Modal>
-
-      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this event? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleDelete} color="error">
-            Delete Event
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
