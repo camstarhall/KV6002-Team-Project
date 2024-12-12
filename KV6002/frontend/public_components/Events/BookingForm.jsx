@@ -189,6 +189,7 @@ const BookingForm = ({ event, onCancel }) => {
         status: "Booked",
         bookingDate: new Date().toISOString(),
         userId: userId,
+        eventDate: event.Date,
       });
 
       setSuccess("Booking successful!");
