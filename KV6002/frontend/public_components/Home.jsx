@@ -34,7 +34,7 @@ function Home() {
     <Box
       sx={{
         textAlign: "center",
-        padding: { xs: "1rem", sm: "2rem", md: "4rem" }, // Increased padding for larger screens
+        padding: { xs: "1rem", sm: "2rem", md: "4rem" },
         backgroundColor: "#D08C8C",
       }}
     >
@@ -58,12 +58,13 @@ function Home() {
               item
               xs={12}
               sm={8}
-              md={6} // Controls width of cards
+              md={6}
               lg={4}
               key={event.id}
             >
               <EventCard
                 event={{
+                  id: event.id, // Pass the event ID for routing
                   title: event.Title,
                   date: event.Date,
                   description: event.Description,

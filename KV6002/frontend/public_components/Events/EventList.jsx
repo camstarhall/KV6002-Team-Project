@@ -38,7 +38,7 @@ const EventList = () => {
 
   return (
     <Box
-      sx={{ padding: "2rem", backgroundColor: "#f8e8e8", minHeight: "100vh" }}
+      sx={{ padding: "2rem", backgroundColor: "#D08C8C", minHeight: "100vh" }}
     >
       <Typography
         variant="h4"
