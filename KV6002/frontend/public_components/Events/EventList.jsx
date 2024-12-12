@@ -6,6 +6,7 @@ import {
   CardContent,
   CardMedia,
   Button,
+  Tooltip,
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
@@ -63,6 +64,7 @@ const EventList = () => {
               mb: 2,
               backgroundColor: "#ffffff",
               boxShadow: 2,
+              position: "relative",
             }}
           >
             <CardMedia
@@ -82,6 +84,36 @@ const EventList = () => {
                 Date: {new Date(event.Date).toLocaleDateString()}
               </Typography>
               <Typography>Location: {event.Location}</Typography>
+
+              {/* Restriction Indicator */}
+              <Box
+                sx={{
+                  mt: 2,
+                  border: `2px solid ${
+                    event.isRestricted ? "orange" : "green"
+                  }`,
+                  color: event.isRestricted ? "orange" : "green",
+                  padding: "0.5rem",
+                  borderRadius: "4px",
+                  display: "inline-block",
+                  backgroundColor: "#ffffff",
+                  cursor: event.isRestricted ? "pointer" : "default",
+                }}
+              >
+                {event.isRestricted ? (
+                  <Tooltip
+                    title="This event is limited to our target charity audience. Visit the About page for more details."
+                    arrow
+                  >
+                    <Typography variant="body2">
+                      Target charity audience only
+                    </Typography>
+                  </Tooltip>
+                ) : (
+                  <Typography variant="body2">Everybody is welcome</Typography>
+                )}
+              </Box>
+
               <Box sx={{ mt: 2 }}>
                 <Link
                   to={`/event/${event.id}`}
