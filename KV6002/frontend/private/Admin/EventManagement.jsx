@@ -60,6 +60,15 @@ function EventManagement() {
     }
   };
 
+  const generateUniqueCode = async () => {
+    const existingCodes = events.map((event) => event.uniqueCode);
+    let uniqueCode;
+    do {
+      uniqueCode = Math.floor(1000 + Math.random() * 9000).toString(); // Generate a 4-digit code
+    } while (existingCodes.includes(uniqueCode)); // Ensure the code is unique
+    return uniqueCode;
+  };
+
   const handleOpenModal = (event = null) => {
     setError("");
     if (event) {
@@ -106,7 +115,12 @@ function EventManagement() {
         const eventDoc = doc(db, "Events", currentEventId);
         await updateDoc(eventDoc, formData);
       } else {
-        await addDoc(eventsCollection, formData);
+        const uniqueCode = await generateUniqueCode(); // Generate unique 4-digit code
+        const newEventData = {
+          ...formData,
+          uniqueCode,
+        };
+        await addDoc(eventsCollection, newEventData);
       }
       fetchEvents();
       handleCloseModal();
@@ -208,6 +222,7 @@ function EventManagement() {
             <Typography>
               Restricted: {event.isRestricted ? "Yes" : "No"}
             </Typography>
+            <Typography>Unique Code: {event.uniqueCode || "N/A"}</Typography>
             {event.imageURL && (
               <Box sx={{ mt: 2 }}>
                 <img

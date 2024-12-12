@@ -1,4 +1,7 @@
-const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {
+  onDocumentCreated,
+  onDocumentDeleted,
+} = require("firebase-functions/v2/firestore");
 const {onRequest} = require("firebase-functions/v2/https");
 const {Vonage} = require("@vonage/server-sdk");
 const admin = require("firebase-admin");
@@ -27,22 +30,21 @@ exports.sendBookingNotification = onDocumentCreated(
       }
 
       const bookingData = bookingSnapshot.data();
-      const bookingId = event.params.bookingId;
-      const {phone, eventTitle, eventDate} = bookingData;
+      const {phone, eventTitle, eventDate, uniqueCode} = bookingData;
 
-      if (!phone || !eventTitle || !eventDate) {
+      if (!phone || !eventTitle || !eventDate || !uniqueCode) {
         console.error("Missing required fields in booking:", bookingData);
         return null;
       }
 
-      // SMS content with Booking ID
-      const message = `Thank you for booking "${eventTitle}" on ${eventDate}.\n\nTo cancel your booking, reply with:\nCANCEL ${bookingId}`;
+      // SMS content with the unique code
+      const message = `Thank you for booking "${eventTitle}" on ${eventDate}.\n\nTo cancel your booking, reply with your 4-digit code:\n${uniqueCode}`;
 
       try {
       // Send the SMS using Vonage
         const response = await vonage.sms.send({
           to: phone,
-          from: "447418318909", // Replace with your new phone number
+          from: "447418318909", // Replace with your phone number
           text: message,
         });
 
@@ -58,7 +60,7 @@ exports.sendBookingNotification = onDocumentCreated(
 /**
  * Function 2: handleInboundSMS
  * Webhook function that listens for inbound SMS replies via Vonage.
- * Cancels the booking if the user replies with "CANCEL <BookingID>".
+ * Cancels the booking if the user replies with their 4-digit unique code.
  */
 exports.handleInboundSMS = onRequest(async (req, res) => {
   const {msisdn, text} = req.body;
@@ -70,40 +72,41 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
     return;
   }
 
-  // Extract Booking ID from the text
-  const cancelMatch = text.trim().match(/^CANCEL\s+(\w+)$/i);
-  if (!cancelMatch) {
-    console.log("User sent an unrecognized reply:", text);
-    res
-        .status(200)
-        .send("Unrecognized reply. To cancel, reply with 'CANCEL <BookingID>'.");
-    return;
-  }
+  const uniqueCode = text.trim(); // The user is expected to send just the unique code
 
-  const bookingId = cancelMatch[1]; // Extracted Booking ID
-  console.log("User requested to cancel Booking ID:", bookingId);
+  console.log("User sent unique code:", uniqueCode);
 
   try {
-    const bookingRef = admin.firestore().collection("Bookings").doc(bookingId);
-    const bookingSnapshot = await bookingRef.get();
+    const bookingsCollection = admin.firestore().collection("Bookings");
 
-    if (!bookingSnapshot.exists) {
-      console.log("No booking found with ID:", bookingId);
-      res.status(200).send("No booking found with this ID.");
+    // Find the booking with the provided unique code
+    const bookingQuery = bookingsCollection.where(
+        "uniqueCode",
+        "==",
+        uniqueCode,
+    );
+    const bookingSnapshot = await bookingQuery.get();
+
+    if (bookingSnapshot.empty) {
+      console.log("No booking found with unique code:", uniqueCode);
+      res.status(200).send("No booking found with this code.");
       return;
     }
 
-    const bookingData = bookingSnapshot.data();
+    const bookingDoc = bookingSnapshot.docs[0];
+    const bookingData = bookingDoc.data();
+
+    // Verify the phone number matches
     if (bookingData.phone !== msisdn) {
-      console.error("Phone number mismatch for booking:", bookingId);
+      console.error("Phone number mismatch for booking:", uniqueCode);
       res.status(200).send("Booking not found or phone number mismatch.");
       return;
     }
 
     // Update the booking status to 'Cancelled'
-    await bookingRef.update({status: "Cancelled"});
+    await bookingDoc.ref.update({status: "Cancelled"});
 
-    console.log("Booking cancelled successfully:", bookingId);
+    console.log("Booking cancelled successfully:", uniqueCode);
 
     // Send confirmation SMS to the customer
     const confirmationMessage = `Your booking "${bookingData.eventTitle}" has been successfully cancelled.`;
@@ -111,7 +114,7 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
     try {
       const smsResponse = await vonage.sms.send({
         to: msisdn,
-        from: "447418318909", // Replace with your new phone number
+        from: "447418318909", // Replace with your phone number
         text: confirmationMessage,
       });
 
@@ -129,3 +132,56 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
     res.status(500).send("Failed to cancel booking.");
   }
 });
+
+/**
+ * Function 3: notifyUsersOnEventDeletion
+ * Triggered when an event document is deleted from the "Events" collection.
+ * Notifies all users who booked the event and cancels their bookings.
+ */
+exports.notifyUsersOnEventDeletion = onDocumentDeleted(
+    {document: "Events/{eventId}"},
+    async (event) => {
+      const deletedEventId = event.params.eventId;
+
+      console.log("Event deleted:", deletedEventId);
+
+      try {
+        const bookingsCollection = admin.firestore().collection("Bookings");
+        const bookingsSnapshot = await bookingsCollection
+            .where("eventId", "==", deletedEventId)
+            .get();
+
+        if (bookingsSnapshot.empty) {
+          console.log("No bookings found for the deleted event.");
+          return;
+        }
+
+        const smsPromises = [];
+        bookingsSnapshot.forEach((doc) => {
+          const booking = doc.data();
+
+          if (booking.phone) {
+            const message = `We regret to inform you that the event "${booking.eventTitle}" has been cancelled. We apologize for the inconvenience.`;
+
+            // Send SMS
+            smsPromises.push(
+                vonage.sms.send({
+                  to: booking.phone,
+                  from: "447418318909", // Replace with your phone number
+                  text: message,
+                }),
+            );
+
+            // Update booking status to "Cancelled"
+            bookingsCollection.doc(doc.id).update({status: "Cancelled"});
+          }
+        });
+
+        // Wait for all SMS promises to resolve
+        await Promise.all(smsPromises);
+        console.log("All users have been notified, and bookings cancelled.");
+      } catch (error) {
+        console.error("Error notifying users about event deletion:", error);
+      }
+    },
+);

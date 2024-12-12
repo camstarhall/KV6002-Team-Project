@@ -64,6 +64,31 @@ const BookingForm = ({ event, onCancel }) => {
     fetchCurrentCapacity();
   }, []);
 
+  const generateUniqueCode = async () => {
+    let uniqueCode;
+    let isUnique = false;
+
+    const bookingsCollection = collection(db, "Bookings");
+
+    while (!isUnique) {
+      // Generate a random 4-digit code as a string
+      uniqueCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+      // Check if the code already exists in the Bookings collection
+      const existingCodeQuery = query(
+        bookingsCollection,
+        where("uniqueCode", "==", uniqueCode)
+      );
+      const existingCodeSnapshot = await getDocs(existingCodeQuery);
+
+      if (existingCodeSnapshot.empty) {
+        isUnique = true; // Code is unique
+      }
+    }
+
+    return uniqueCode;
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -164,6 +189,9 @@ const BookingForm = ({ event, onCancel }) => {
         userId = existingUserSnapshot.docs[0].id;
       }
 
+      // Generate a unique code for the booking
+      const uniqueCode = await generateUniqueCode();
+
       // Save new booking to the Bookings collection
       await addDoc(bookingsCollection, {
         eventId: event.id,
@@ -174,6 +202,7 @@ const BookingForm = ({ event, onCancel }) => {
         bookingDate: new Date().toISOString(),
         userId: userId,
         eventDate: event.Date,
+        uniqueCode: uniqueCode, // Add the unique code to the booking
       });
 
       setSuccess("Booking successful!");
