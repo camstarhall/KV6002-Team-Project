@@ -1,6 +1,6 @@
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
-const { onRequest } = require("firebase-functions/v2/https");
-const { Vonage } = require("@vonage/server-sdk");
+const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {onRequest} = require("firebase-functions/v2/https");
+const {Vonage} = require("@vonage/server-sdk");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -17,42 +17,42 @@ const vonage = new Vonage({
  * Sends a booking confirmation SMS to the customer.
  */
 exports.sendBookingNotification = onDocumentCreated(
-  { document: "Bookings/{bookingId}" },
-  async (event) => {
-    const bookingSnapshot = event.data;
+    {document: "Bookings/{bookingId}"},
+    async (event) => {
+      const bookingSnapshot = event.data;
 
-    if (!bookingSnapshot) {
-      console.error("No snapshot data found for the booking.");
-      return null;
-    }
+      if (!bookingSnapshot) {
+        console.error("No snapshot data found for the booking.");
+        return null;
+      }
 
-    const bookingData = bookingSnapshot.data();
-    const bookingId = event.params.bookingId;
-    const { phone, eventTitle, eventDate } = bookingData;
+      const bookingData = bookingSnapshot.data();
+      const bookingId = event.params.bookingId;
+      const {phone, eventTitle, eventDate} = bookingData;
 
-    if (!phone || !eventTitle || !eventDate) {
-      console.error("Missing required fields in booking:", bookingData);
-      return null;
-    }
+      if (!phone || !eventTitle || !eventDate) {
+        console.error("Missing required fields in booking:", bookingData);
+        return null;
+      }
 
-    // SMS content with Booking ID
-    const message = `Thank you for booking "${eventTitle}" on ${eventDate}.\n\nTo cancel your booking, reply with:\nCANCEL ${bookingId}`;
+      // SMS content with Booking ID
+      const message = `Thank you for booking "${eventTitle}" on ${eventDate}.\n\nTo cancel your booking, reply with:\nCANCEL ${bookingId}`;
 
-    try {
+      try {
       // Send the SMS using Vonage
-      const response = await vonage.sms.send({
-        to: phone,
-        from: "447418318909", // Replace with your new phone number
-        text: message,
-      });
+        const response = await vonage.sms.send({
+          to: phone,
+          from: "447418318909", // Replace with your new phone number
+          text: message,
+        });
 
-      console.log("SMS sent successfully:", response);
-    } catch (error) {
-      console.error("Failed to send SMS:", error);
-    }
+        console.log("SMS sent successfully:", response);
+      } catch (error) {
+        console.error("Failed to send SMS:", error);
+      }
 
-    return null;
-  }
+      return null;
+    },
 );
 
 /**
@@ -61,7 +61,7 @@ exports.sendBookingNotification = onDocumentCreated(
  * Cancels the booking if the user replies with "CANCEL <BookingID>".
  */
 exports.handleInboundSMS = onRequest(async (req, res) => {
-  const { msisdn, text } = req.body;
+  const {msisdn, text} = req.body;
 
   console.log("Inbound SMS received:", req.body);
 
@@ -75,8 +75,8 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
   if (!cancelMatch) {
     console.log("User sent an unrecognized reply:", text);
     res
-      .status(200)
-      .send("Unrecognized reply. To cancel, reply with 'CANCEL <BookingID>'.");
+        .status(200)
+        .send("Unrecognized reply. To cancel, reply with 'CANCEL <BookingID>'.");
     return;
   }
 
@@ -101,7 +101,7 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
     }
 
     // Update the booking status to 'Cancelled'
-    await bookingRef.update({ status: "Cancelled" });
+    await bookingRef.update({status: "Cancelled"});
 
     console.log("Booking cancelled successfully:", bookingId);
 
@@ -116,8 +116,8 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
       });
 
       console.log(
-        "Cancellation confirmation SMS sent successfully:",
-        smsResponse
+          "Cancellation confirmation SMS sent successfully:",
+          smsResponse,
       );
     } catch (smsError) {
       console.error("Failed to send cancellation confirmation SMS:", smsError);
