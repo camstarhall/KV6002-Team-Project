@@ -5,9 +5,9 @@ import {
   TextField,
   Button,
   MenuItem,
-  Alert,
   Grid,
-  InputAdornment,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   collection,
@@ -35,6 +35,7 @@ const BookingForm = ({ event, onCancel }) => {
   const [currentCapacity, setCurrentCapacity] = useState(0);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [toastOpen, setToastOpen] = useState(false);
 
   // Phone number extensions
   const phoneExtensions = [
@@ -84,43 +85,47 @@ const BookingForm = ({ event, onCancel }) => {
     // Validate fields
     if (!isValidName(formData.fullName)) {
       setError("Please enter a valid name (letters and spaces only).");
+      setToastOpen(true);
       return;
     }
     if (!formData.phone.trim()) {
       setError("A phone number is required to send your booking confirmation.");
+      setToastOpen(true);
       return;
     }
     if (!isValidPhone(formData.phone)) {
       setError("Please enter a valid phone number.");
+      setToastOpen(true);
       return;
     }
     if (formData.email && !isValidEmail(formData.email)) {
       setError("Please enter a valid email address.");
+      setToastOpen(true);
       return;
     }
     if (!isValidAddress(formData.address)) {
       setError(
         "Please enter a valid first line of address (at least 5 characters)."
       );
-      return;
-    }
-    if (formData.gender !== "Female") {
-      setError("Only females are allowed to book this event.");
+      setToastOpen(true);
       return;
     }
     if (
+      event.isRestricted &&
       formData.employmentStatus === "Employed" &&
       parseFloat(formData.monthlySalary) >= 1500
     ) {
       setError(
         "Your monthly salary must be less than RM 1500 to qualify for booking."
       );
+      setToastOpen(true);
       return;
     }
 
     // Validate current capacity
     if (currentCapacity >= event.Capacity) {
       setError("This event is fully booked.");
+      setToastOpen(true);
       return;
     }
 
@@ -143,47 +148,20 @@ const BookingForm = ({ event, onCancel }) => {
         // Create a new user record
         const userDoc = await addDoc(usersCollection, {
           fullName: formData.fullName,
-          gender: formData.gender,
-          dateOfBirth: formData.dateOfBirth,
+          gender: event.isRestricted ? formData.gender : null,
+          dateOfBirth: event.isRestricted ? formData.dateOfBirth : null,
           email: formData.email || null,
           phone: fullPhoneNumber,
           address: formData.address,
-          employmentStatus: formData.employmentStatus,
-          monthlySalary: formData.monthlySalary || null,
+          employmentStatus: event.isRestricted
+            ? formData.employmentStatus
+            : null,
+          monthlySalary: event.isRestricted ? formData.monthlySalary : null,
         });
         userId = userDoc.id; // Get the new user ID
       } else {
         // Get the existing user ID
         userId = existingUserSnapshot.docs[0].id;
-      }
-
-      // Check if the user has already booked this event
-      const existingBookingQuery = query(
-        bookingsCollection,
-        where("eventId", "==", event.id),
-        where("phone", "==", fullPhoneNumber)
-      );
-      const existingBookingSnapshot = await getDocs(existingBookingQuery);
-
-      if (!existingBookingSnapshot.empty) {
-        const existingBooking = existingBookingSnapshot.docs[0].data();
-        if (existingBooking.status === "Booked") {
-          setError("You've already booked this event.");
-          return;
-        } else if (existingBooking.status === "Cancelled") {
-          // Allow rebooking if the booking was previously cancelled
-          const bookingDocId = existingBookingSnapshot.docs[0].id;
-          const bookingDoc = doc(db, "Bookings", bookingDocId);
-
-          await updateDoc(bookingDoc, {
-            status: "Booked",
-            bookingDate: new Date().toISOString(),
-          });
-
-          setSuccess("Your booking has been successfully reactivated!");
-          fetchCurrentCapacity();
-          return;
-        }
       }
 
       // Save new booking to the Bookings collection
@@ -199,6 +177,7 @@ const BookingForm = ({ event, onCancel }) => {
       });
 
       setSuccess("Booking successful!");
+      setToastOpen(true);
       setFormData({
         fullName: "",
         gender: "",
@@ -214,6 +193,7 @@ const BookingForm = ({ event, onCancel }) => {
     } catch (err) {
       console.error("Error saving booking:", err);
       setError("An error occurred while processing your booking.");
+      setToastOpen(true);
     }
   };
 
@@ -238,23 +218,6 @@ const BookingForm = ({ event, onCancel }) => {
         Book / RSVP for {event.Title}
       </Typography>
 
-      {error && (
-        <Alert
-          severity="error"
-          sx={{ mb: 2 }}
-        >
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert
-          severity="success"
-          sx={{ mb: 2 }}
-        >
-          {success}
-        </Alert>
-      )}
-
       <TextField
         label="Full Name"
         name="fullName"
@@ -264,30 +227,36 @@ const BookingForm = ({ event, onCancel }) => {
         required
         sx={{ mb: 2 }}
       />
-      <TextField
-        select
-        label="Gender"
-        name="gender"
-        value={formData.gender}
-        onChange={handleInputChange}
-        fullWidth
-        required
-        sx={{ mb: 2 }}
-      >
-        <MenuItem value="Male">Male</MenuItem>
-        <MenuItem value="Female">Female</MenuItem>
-      </TextField>
-      <TextField
-        label="Date of Birth"
-        name="dateOfBirth"
-        type="date"
-        value={formData.dateOfBirth}
-        onChange={handleInputChange}
-        fullWidth
-        required
-        InputLabelProps={{ shrink: true }}
-        sx={{ mb: 2 }}
-      />
+
+      {event.isRestricted && (
+        <>
+          <TextField
+            select
+            label="Gender"
+            name="gender"
+            value={formData.gender}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            sx={{ mb: 2 }}
+          >
+            <MenuItem value="Male">Male</MenuItem>
+            <MenuItem value="Female">Female</MenuItem>
+          </TextField>
+          <TextField
+            label="Date of Birth"
+            name="dateOfBirth"
+            type="date"
+            value={formData.dateOfBirth}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            InputLabelProps={{ shrink: true }}
+            sx={{ mb: 2 }}
+          />
+        </>
+      )}
+
       <TextField
         label="Email Address"
         name="email"
@@ -347,30 +316,35 @@ const BookingForm = ({ event, onCancel }) => {
         required
         sx={{ mb: 2 }}
       />
-      <TextField
-        select
-        label="Employment Status"
-        name="employmentStatus"
-        value={formData.employmentStatus}
-        onChange={handleInputChange}
-        fullWidth
-        required
-        sx={{ mb: 2 }}
-      >
-        <MenuItem value="Employed">Employed</MenuItem>
-        <MenuItem value="Unemployed">Unemployed</MenuItem>
-      </TextField>
-      {formData.employmentStatus === "Employed" && (
-        <TextField
-          label="Monthly Salary (RM)"
-          name="monthlySalary"
-          type="number"
-          value={formData.monthlySalary}
-          onChange={handleInputChange}
-          fullWidth
-          required
-          sx={{ mb: 2 }}
-        />
+
+      {event.isRestricted && (
+        <>
+          <TextField
+            select
+            label="Employment Status"
+            name="employmentStatus"
+            value={formData.employmentStatus}
+            onChange={handleInputChange}
+            fullWidth
+            required
+            sx={{ mb: 2 }}
+          >
+            <MenuItem value="Employed">Employed</MenuItem>
+            <MenuItem value="Unemployed">Unemployed</MenuItem>
+          </TextField>
+          {formData.employmentStatus === "Employed" && (
+            <TextField
+              label="Monthly Salary (RM)"
+              name="monthlySalary"
+              type="number"
+              value={formData.monthlySalary}
+              onChange={handleInputChange}
+              fullWidth
+              required
+              sx={{ mb: 2 }}
+            />
+          )}
+        </>
       )}
 
       <Box sx={{ display: "flex", gap: 2 }}>
@@ -389,6 +363,24 @@ const BookingForm = ({ event, onCancel }) => {
           Cancel
         </Button>
       </Box>
+
+      {/* Toast notifications */}
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={3000}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        {(error || success) && (
+          <Alert
+            onClose={() => setToastOpen(false)}
+            severity={error ? "error" : "success"}
+            sx={{ width: "100%" }}
+          >
+            {error || success}
+          </Alert>
+        )}
+      </Snackbar>
     </Box>
   );
 };
