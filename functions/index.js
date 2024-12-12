@@ -2,6 +2,7 @@ const {
   onDocumentCreated,
   onDocumentDeleted,
 } = require("firebase-functions/v2/firestore");
+const {onSchedule} = require("firebase-functions/v2/scheduler"); // Correct import for scheduled functions
 const {onRequest} = require("firebase-functions/v2/https");
 const {Vonage} = require("@vonage/server-sdk");
 const admin = require("firebase-admin");
@@ -185,3 +186,66 @@ exports.notifyUsersOnEventDeletion = onDocumentDeleted(
       }
     },
 );
+
+/**
+ * Function 3: scheduleReminderSMS
+ * Scheduled Cloud Function that runs every 24 hours.
+ * Sends reminder SMS for bookings happening in the next 48 hours.
+ */
+exports.scheduleReminderSMS = onSchedule("every 24 hours", async (event) => {
+  try {
+    const currentTime = new Date();
+    const targetTime = new Date(currentTime.getTime() + 48 * 60 * 60 * 1000); // 48 hours from now
+
+    const bookingsCollection = admin.firestore().collection("Bookings");
+
+    // Query bookings for events happening within the next 48 hours
+    const bookingsSnapshot = await bookingsCollection
+        .where("status", "==", "Booked")
+        .get();
+
+    const smsPromises = [];
+    bookingsSnapshot.forEach((doc) => {
+      const booking = doc.data();
+      const eventDate = new Date(booking.eventDate);
+
+      // Check if the eventDate is within the next 48 hours
+      if (eventDate >= currentTime && eventDate <= targetTime) {
+        smsPromises.push(
+            sendReminderSMS(
+                booking.phone,
+                booking.eventTitle,
+                eventDate.toLocaleDateString(),
+            ),
+        );
+      }
+    });
+
+    await Promise.all(smsPromises);
+    console.log("Reminder SMS process completed.");
+  } catch (error) {
+    console.error("Error scheduling reminder SMS:", error);
+  }
+});
+
+/**
+ * Function: sendReminderSMS
+ * Sends a reminder SMS to a customer.
+ * @param {string} phone - The customer's phone number.
+ * @param {string} eventTitle - The title of the event.
+ * @param {string} eventDate - The date of the event.
+ */
+async function sendReminderSMS(phone, eventTitle, eventDate) {
+  const message = `Reminder: Your booking for "${eventTitle}" is scheduled on ${eventDate}. We look forward to seeing you there!`;
+
+  try {
+    const response = await vonage.sms.send({
+      to: phone,
+      from: "447418318909",
+      text: message,
+    });
+    console.log("Reminder SMS sent successfully:", response);
+  } catch (error) {
+    console.error("Failed to send reminder SMS:", error);
+  }
+}
