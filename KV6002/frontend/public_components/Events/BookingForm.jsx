@@ -6,7 +6,7 @@ import {
   Button,
   MenuItem,
   Alert,
-  Select,
+  Grid,
   InputAdornment,
 } from "@mui/material";
 import {
@@ -86,6 +86,10 @@ const BookingForm = ({ event, onCancel }) => {
       setError("Please enter a valid name (letters and spaces only).");
       return;
     }
+    if (!formData.phone.trim()) {
+      setError("A phone number is required to send your booking confirmation.");
+      return;
+    }
     if (!isValidPhone(formData.phone)) {
       setError("Please enter a valid phone number.");
       return;
@@ -95,7 +99,9 @@ const BookingForm = ({ event, onCancel }) => {
       return;
     }
     if (!isValidAddress(formData.address)) {
-      setError("Please enter a valid home address (at least 5 characters).");
+      setError(
+        "Please enter a valid first line of address (at least 5 characters)."
+      );
       return;
     }
     if (formData.gender !== "Female") {
@@ -291,38 +297,49 @@ const BookingForm = ({ event, onCancel }) => {
         fullWidth
         sx={{ mb: 2 }}
       />
-      <TextField
-        label="Phone Number"
-        name="phone"
-        value={formData.phone}
-        onChange={handleInputChange}
-        fullWidth
-        required
+      <Grid
+        container
+        spacing={2}
         sx={{ mb: 2 }}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Select
-                name="phoneExtension"
-                value={formData.phoneExtension}
-                onChange={handleInputChange}
-                sx={{ mr: 1 }}
+      >
+        <Grid
+          item
+          xs={4}
+        >
+          <TextField
+            select
+            label="Ext."
+            name="phoneExtension"
+            value={formData.phoneExtension}
+            onChange={handleInputChange}
+            fullWidth
+          >
+            {phoneExtensions.map((ext) => (
+              <MenuItem
+                key={ext.value}
+                value={ext.value}
               >
-                {phoneExtensions.map((ext) => (
-                  <MenuItem
-                    key={ext.value}
-                    value={ext.value}
-                  >
-                    {ext.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </InputAdornment>
-          ),
-        }}
-      />
+                {ext.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Grid>
+        <Grid
+          item
+          xs={8}
+        >
+          <TextField
+            label="Phone Number"
+            name="phone"
+            value={formData.phone}
+            onChange={handleInputChange}
+            fullWidth
+            required
+          />
+        </Grid>
+      </Grid>
       <TextField
-        label="Home Address"
+        label="First Line of Address"
         name="address"
         value={formData.address}
         onChange={handleInputChange}
