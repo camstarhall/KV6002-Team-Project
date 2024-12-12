@@ -7,6 +7,11 @@ import {
   CardMedia,
   Button,
   Tooltip,
+  Checkbox,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
@@ -14,7 +19,11 @@ import { db } from "../../../firebaseConfig";
 
 const EventList = () => {
   const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPastEvents, setShowPastEvents] = useState(false);
+  const [filterMethod, setFilterMethod] = useState("Date");
+  const [sortOrder, setSortOrder] = useState("Ascending");
 
   // Fetch events from Firestore
   const fetchEvents = async () => {
@@ -26,6 +35,7 @@ const EventList = () => {
         ...doc.data(),
       }));
       setEvents(eventsData);
+      setFilteredEvents(eventsData); // Initialize filtered events
     } catch (error) {
       console.error("Error fetching events:", error);
     } finally {
@@ -37,26 +47,137 @@ const EventList = () => {
     fetchEvents();
   }, []);
 
+  // Filter and sort events
+  useEffect(() => {
+    let filtered = events;
+
+    // Filter out past events if the toggle is off
+    if (!showPastEvents) {
+      const today = new Date();
+      filtered = filtered.filter((event) => new Date(event.Date) >= today);
+    }
+
+    // Sort events based on selected method and order
+    if (filterMethod === "Date") {
+      filtered.sort((a, b) =>
+        sortOrder === "Ascending"
+          ? new Date(a.Date) - new Date(b.Date)
+          : new Date(b.Date) - new Date(a.Date)
+      );
+    } else if (filterMethod === "Alphabetical") {
+      filtered.sort((a, b) =>
+        sortOrder === "Ascending"
+          ? a.Title.localeCompare(b.Title)
+          : b.Title.localeCompare(a.Title)
+      );
+    }
+
+    setFilteredEvents(filtered);
+  }, [events, showPastEvents, filterMethod, sortOrder]);
+
   return (
     <Box
       sx={{ padding: "2rem", backgroundColor: "#D08C8C", minHeight: "100vh" }}
     >
       <Typography
         variant="h4"
-        sx={{ color: "#7B3F3F", mb: 4, textAlign: "center" }}
+        sx={{ color: "#000000", mb: 4, textAlign: "center" }}
       >
         Upcoming Events
       </Typography>
+
+      <Typography
+        variant="h6"
+        sx={{ color: "#000000", mb: 4, textAlign: "center" }}
+      >
+        Join us for our upcoming events and make a difference in the community!
+      </Typography>
+
+      {/* Controls for filtering and sorting */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+          mb: 4,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Checkbox
+            checked={showPastEvents}
+            onChange={(e) => setShowPastEvents(e.target.checked)}
+            sx={{ color: "green" }}
+          />
+          <Typography sx={{ color: "green", fontWeight: "bold" }}>
+            Show Past Events
+          </Typography>
+        </Box>
+        <FormControl
+          sx={{
+            minWidth: 150,
+            backgroundColor: "green",
+            borderRadius: "4px",
+            "& .MuiInputBase-root": {
+              color: "white",
+            },
+            "& .MuiInputLabel-root": {
+              color: "white", // Ensure label is visible
+            },
+            "& .MuiSvgIcon-root": {
+              color: "white", // Arrow color
+            },
+          }}
+        >
+          <InputLabel id="filter-method-label">Filter By</InputLabel>
+          <Select
+            labelId="filter-method-label"
+            value={filterMethod}
+            onChange={(e) => setFilterMethod(e.target.value)}
+          >
+            <MenuItem value="Date">Date</MenuItem>
+            <MenuItem value="Alphabetical">Alphabetical</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl
+          sx={{
+            minWidth: 150,
+            backgroundColor: "green",
+            borderRadius: "4px",
+            "& .MuiInputBase-root": {
+              color: "white",
+            },
+            "& .MuiInputLabel-root": {
+              color: "white", // Ensure label is visible
+            },
+            "& .MuiSvgIcon-root": {
+              color: "white", // Arrow color
+            },
+          }}
+        >
+          <InputLabel id="sort-order-label">Sort Order</InputLabel>
+          <Select
+            labelId="sort-order-label"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+          >
+            <MenuItem value="Ascending">Ascending</MenuItem>
+            <MenuItem value="Descending">Descending</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
+      {/* Event Cards */}
       {loading ? (
         <Typography sx={{ color: "#7B3F3F", textAlign: "center" }}>
           Loading events...
         </Typography>
-      ) : events.length === 0 ? (
+      ) : filteredEvents.length === 0 ? (
         <Typography sx={{ color: "#7B3F3F", textAlign: "center" }}>
           No events available
         </Typography>
       ) : (
-        events.map((event) => (
+        filteredEvents.map((event) => (
           <Card
             key={event.id}
             sx={{

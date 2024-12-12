@@ -254,17 +254,8 @@ function About() {
           <AccordionDetails>
             <Typography>
               To cancel your booking, simply reply to the SMS confirmation you
-              received with the word CANCEL followed by your unique booking ID.
-              The booking confirmation message you initially received contains
-              the exact format and booking ID required for cancellation (e.g.,
-              CANCEL 0zhvvSBIVaw3lZhHz4G3). When you send this reply, the system
-              matches your phone number and booking ID to verify your request.
-              If everything checks out, the system updates the booking status to
-              “Cancelled” in the database and sends you a confirmation SMS
-              letting you know that your booking has been successfully
-              cancelled. If there is an issue, such as a mismatch of your phone
-              number or an invalid booking ID, the system will notify you with
-              appropriate instructions.
+              received with the 4-digit unique cancellation code you were sent
+              alongside your confirmation.
             </Typography>
           </AccordionDetails>
         </Accordion>
