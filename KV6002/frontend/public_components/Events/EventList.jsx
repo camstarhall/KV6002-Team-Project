@@ -12,8 +12,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  IconButton,
+  Snackbar,
 } from "@mui/material";
 import { Link } from "react-router-dom";
+import ShareIcon from "@mui/icons-material/Share";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 
@@ -24,6 +27,8 @@ const EventList = () => {
   const [showPastEvents, setShowPastEvents] = useState(false);
   const [filterMethod, setFilterMethod] = useState("Date");
   const [sortOrder, setSortOrder] = useState("Ascending");
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   // Fetch events from Firestore
   const fetchEvents = async () => {
@@ -75,6 +80,29 @@ const EventList = () => {
     setFilteredEvents(filtered);
   }, [events, showPastEvents, filterMethod, sortOrder]);
 
+  // Share event function
+  const handleShare = (eventId) => {
+    const eventLink = `https://k6002-2b4cf.web.app/event/${eventId}`;
+
+    if (navigator.share) {
+      navigator
+        .share({
+          title: "Check out this event!",
+          url: eventLink,
+        })
+        .catch((error) => console.error("Error sharing:", error));
+    } else {
+      navigator.clipboard.writeText(eventLink).then(() => {
+        setSnackbarMessage("Link copied to clipboard!");
+        setSnackbarOpen(true);
+      });
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
+  };
+
   return (
     <Box
       sx={{ padding: "2rem", backgroundColor: "#D08C8C", minHeight: "100vh" }}
@@ -99,7 +127,7 @@ const EventList = () => {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          flexDirection: { xs: "column", sm: "row" }, // Column for mobile, row for larger screens
+          flexDirection: { xs: "column", sm: "row" },
           gap: 2,
           mb: 4,
         }}
@@ -110,7 +138,7 @@ const EventList = () => {
             display: "flex",
             alignItems: "center",
             gap: 1,
-            mb: { xs: 2, sm: 0 }, // Add bottom margin on phones
+            mb: { xs: 2, sm: 0 },
           }}
         >
           <Checkbox
@@ -127,7 +155,7 @@ const EventList = () => {
         <Box
           sx={{
             display: "flex",
-            flexDirection: "row", // Always keep filtering options side by side
+            flexDirection: "row",
             gap: 2,
           }}
         >
@@ -140,10 +168,10 @@ const EventList = () => {
                 color: "white",
               },
               "& .MuiInputLabel-root": {
-                color: "white", // Ensure label is visible
+                color: "white",
               },
               "& .MuiSvgIcon-root": {
-                color: "white", // Arrow color
+                color: "white",
               },
             }}
           >
@@ -167,10 +195,10 @@ const EventList = () => {
                 color: "white",
               },
               "& .MuiInputLabel-root": {
-                color: "white", // Ensure label is visible
+                color: "white",
               },
               "& .MuiSvgIcon-root": {
-                color: "white", // Arrow color
+                color: "white",
               },
             }}
           >
@@ -215,10 +243,7 @@ const EventList = () => {
               alt={event.Title}
             />
             <CardContent>
-              <Typography
-                variant="h5"
-                sx={{ color: "#7B3F3F" }}
-              >
+              <Typography variant="h5" sx={{ color: "#7B3F3F" }}>
                 {event.Title}
               </Typography>
               <Typography>
@@ -226,44 +251,19 @@ const EventList = () => {
               </Typography>
               <Typography>Location: {event.Location}</Typography>
 
-              {/* Restriction Indicator */}
-              <Box
-                sx={{
-                  mt: 2,
-                  border: `2px solid ${
-                    event.isRestricted ? "orange" : "green"
-                  }`,
-                  color: event.isRestricted ? "orange" : "green",
-                  padding: "0.5rem",
-                  borderRadius: "4px",
-                  display: "inline-block",
-                  backgroundColor: "#ffffff",
-                  cursor: event.isRestricted ? "pointer" : "default",
-                }}
-              >
-                {event.isRestricted ? (
-                  <Tooltip
-                    title="This event is limited to our target charity audience. Visit the About page for more details."
-                    arrow
-                  >
-                    <Typography variant="body2">
-                      Target charity audience only
-                    </Typography>
-                  </Tooltip>
-                ) : (
-                  <Typography variant="body2">Everybody is welcome</Typography>
-                )}
-              </Box>
-
-              <Box sx={{ mt: 2 }}>
-                <Link
-                  to={`/event/${event.id}`}
-                  state={{ event }}
-                >
-                  <Button
-                    variant="contained"
+              <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
+                {/* Share Icon */}
+                <Tooltip title="Share this event" arrow>
+                  <IconButton
+                    onClick={() => handleShare(event.id)}
                     color="primary"
                   >
+                    <ShareIcon />
+                  </IconButton>
+                </Tooltip>
+
+                <Link to={`/event/${event.id}`} state={{ event }}>
+                  <Button variant="contained" color="primary">
                     View Details
                   </Button>
                 </Link>
@@ -272,6 +272,14 @@ const EventList = () => {
           </Card>
         ))
       )}
+
+      {/* Snackbar for Copy Notification */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        message={snackbarMessage}
+      />
     </Box>
   );
 };
