@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Grid } from "@mui/material";
-import { collection, getDocs, query, limit } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import EventCard from "./Events/EventCard";
 
@@ -8,16 +15,34 @@ function Home() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch the first 3 events from Firestore
+  // Fetch events from Firestore
+  // filter these events to make sure theyre not in the past
   const fetchEvents = async () => {
     try {
+      const currentDate = new Date(); // Get the current date and time
+
       const eventsCollection = collection(db, "Events");
-      const eventsQuery = query(eventsCollection, limit(3)); // Limit to 3 events
+
+      // Use the Firestore query operators correctly.
+      // If "Date" field is stored as a string in ISO format, ensure you're comparing it correctly.
+      // If it's stored as a Firestore Timestamp, you'll need to change the query accordingly.
+      // For this example, let's assume Date is a string in "YYYY-MM-DD" format or an ISO string.
+      const isoString = currentDate.toISOString().split("T")[0]; // Convert current date to YYYY-MM-DD if needed.
+
+      const eventsQuery = query(
+        eventsCollection,
+        where("Date", ">=", isoString),
+        orderBy("Date", "asc"),
+        limit(3)
+      );
+
       const eventsSnapshot = await getDocs(eventsQuery);
+
       const eventsData = eventsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
+
       setEvents(eventsData);
     } catch (error) {
       console.error("Error fetching events:", error);
