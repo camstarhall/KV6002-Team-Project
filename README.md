@@ -54,6 +54,23 @@ University project for KV6002. This project aims to provide the ROSE Doundations
 
 For login information, see 'logins.txt' provided with the project files
 
+**For devs**
+
+Changes pushed to GitHub are deployed automatically through GitHub actions (found in the ./github/workflows folder), however the cloud functions are exempt from this due to ESLint configurations. To deploy any changes to cloud functions, follow these steps:
+
+1. Clone the repository
+2. Navigate to the 'functions' folder
+   ('cd functions')
+3. Install dependancies
+   ('npm install')
+4. Make changes to index.js
+5. Run ESLint from 'functions' folder
+   ('npx eslint . --fix')
+6. Navigate back to root folder
+   ('cd ..' assuming you were in 'functions')
+7. Deploy to firebase
+   ('firebase deploy --only functions')
+
 ### Technologies Used
 
 - React.js
