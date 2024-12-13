@@ -41,6 +41,10 @@ function EventManagement() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [error, setError] = useState("");
 
+  // New states for delete confirmation
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteEventId, setDeleteEventId] = useState(null);
+
   useEffect(() => {
     fetchEvents();
   }, []);
@@ -104,8 +108,20 @@ function EventManagement() {
     e.preventDefault();
     setError("");
 
+    // Validate capacity
     if (formData.Capacity <= 0) {
       setError("The event capacity must be greater than 0.");
+      return;
+    }
+
+    // Validate date (cannot be in the past)
+    const selectedDate = new Date(formData.Date);
+    const today = new Date();
+    // Clear time from today's date to compare only date portion
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+      setError("You cannot set the event date in the past.");
       return;
     }
 
@@ -130,15 +146,28 @@ function EventManagement() {
     }
   };
 
-  const handleDelete = async (eventId) => {
+  const openDeleteConfirmation = (eventId) => {
+    setDeleteEventId(eventId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const closeDeleteConfirmation = () => {
+    setDeleteConfirmOpen(false);
+    setDeleteEventId(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteEventId) return;
     try {
-      const eventDoc = doc(db, "Events", eventId);
+      const eventDoc = doc(db, "Events", deleteEventId);
       await deleteDoc(eventDoc); // Delete the event
       fetchEvents(); // Refresh the event list
-      console.log("Event deleted successfully:", eventId);
+      console.log("Event deleted successfully:", deleteEventId);
     } catch (error) {
       console.error("Error deleting event:", error);
       alert("Failed to delete event.");
+    } finally {
+      closeDeleteConfirmation();
     }
   };
 
@@ -242,7 +271,7 @@ function EventManagement() {
             </IconButton>
             <IconButton
               color="error"
-              onClick={() => handleDelete(event.id)}
+              onClick={() => openDeleteConfirmation(event.id)}
             >
               <DeleteIcon />
             </IconButton>
@@ -347,7 +376,7 @@ function EventManagement() {
             fullWidth
             sx={{ mb: 2 }}
             required
-            inputProps={{ min: 0 }}
+            inputProps={{ min: 1 }}
           />
           <TextField
             label="Who is this event for?"
@@ -393,6 +422,50 @@ function EventManagement() {
           >
             {isEdit ? "Update Event" : "Add Event"}
           </Button>
+        </Box>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteConfirmOpen}
+        onClose={closeDeleteConfirmation}
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: 2,
+            width: { xs: "90%", sm: "400px" },
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{ mb: 2, color: "red" }}
+          >
+            Confirm Delete
+          </Typography>
+          <Typography sx={{ mb: 2, color: "red" }}>
+            Are you sure you want to delete this event? This cannot be undone.
+          </Typography>
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={confirmDelete}
+            >
+              Delete
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={closeDeleteConfirmation}
+            >
+              Cancel
+            </Button>
+          </Box>
         </Box>
       </Modal>
     </Box>
