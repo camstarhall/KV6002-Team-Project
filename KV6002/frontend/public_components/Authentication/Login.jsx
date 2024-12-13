@@ -1,64 +1,89 @@
-import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Snackbar,
-  Alert,
-  useMediaQuery,
-} from "@mui/material";
+import React, { useState, useEffect, useRef } from "react";
+import { Box, Typography, TextField, Button, Snackbar, Alert, useMediaQuery } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  getFirestore,
-} from "firebase/firestore";
-import {
-  loginCookieSet,
-  existingLoginCheck,
-  logoutUser,
-} from "./cookieHandling";
+import { doc, getDoc, getFirestore } from "firebase/firestore";
+import { loginCookieSet, existingLoginCheck, logoutUser } from "./cookieHandling";
+import CryptoJS from "crypto-js"; // Import CryptoJS
 
 const db = getFirestore();
 const INACTIVITY_TIME = 2 * 60 * 1000; // 2 minutes
 
 function Login() {
+  //Variables for login management
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const navigate = useNavigate();
-  const alreadyLoggedIn = existingLoginCheck();
+  
+  //Change element size for mobile.
   const isMobile = useMediaQuery("(max-width:600px)");
 
-  let inactivityTimer;
+  const alreadyLoggedIn = existingLoginCheck();
+  const inactivityTimer = useRef(null); // Persistent reference for the timer
 
   async function getUserByEmail(collectionName, userEmail) {
-    const q = query(
-      collection(db, collectionName),
-      where("email", "==", userEmail)
-    );
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) {
+    const hashedEmail = await hashUserDetails(userEmail);
+    console.log("Hashed Email to query:", hashedEmail); // Debug log
+
+    // Reference to the document using the hashed email as the document ID
+    const docRef = doc(db, collectionName, hashedEmail);
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) {
+      console.log("No user found in collection:", collectionName); // Debug log
       return null;
     }
-    return querySnapshot.docs[0].data();
+
+    return docSnap.data();  // Return the document data if it exists
+  }
+
+  async function hashUserDetails(userInput) { //Hashes inputted details, removes any characters which aren't accepted in firebase DB.
+    const hashed = CryptoJS.SHA256(userInput).toString(CryptoJS.enc.Base64)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    console.log("Hashed Input (URL-Safe):", hashed); // Debug log
+    return hashed;
+  }
+
+  async function checkPwInput(storedHash, passwordInput) {
+    const pHash = await hashUserDetails(passwordInput);
+    return pHash === storedHash;
   }
 
   async function validateUser(userEmail, passwordInput) {
-    let userData = await getUserByEmail("Admin", userEmail);
-    if (userData && userData.password === passwordInput) return userData;
+    try {
+      let userData = await getUserByEmail("Admin", userEmail);
+      if (userData) {
+        if (!(await checkPwInput(userData.PassHash, passwordInput))) {
+          throw new Error("Invalid password");
+        }
+        return { ...userData, role: "admin" };
+      }
 
-    userData = await getUserByEmail("CharityStaff", userEmail);
-    if (userData && userData.password === passwordInput) return userData;
+      userData = await getUserByEmail("CharityStaff", userEmail);
+      if (userData) {
+        if (!(await checkPwInput(userData.PassHash, passwordInput))) {
+          throw new Error("Invalid password");
+        }
+        return { ...userData, role: "charity staff" };
+      }
 
-    userData = await getUserByEmail("LocalLeaders", userEmail);
-    if (userData && userData.password === passwordInput) return userData;
+      userData = await getUserByEmail("LocalLeaders", userEmail);
+      if (userData) {
+        if (!(await checkPwInput(userData.PassHash, passwordInput))) {
+          throw new Error("Invalid password");
+        }
+        return { ...userData, role: "local leader" };
+      }
 
-    throw new Error("User not found");
+      throw new Error("User not found");
+    } catch (error) {
+      console.error("Validation Error:", error);
+      throw error;
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -68,23 +93,23 @@ function Login() {
 
     try {
       const userData = await validateUser(email, password);
+      console.log(userData.role); //TESTING PURPOSE - REMOVE
       loginCookieSet(email);
+      console.log("Login successful:", email, "Role:", userData.role);
 
-      if (userData.role === "admin") {
-        navigate("/admin-dashboard");
-      } else if (userData.role === "charity staff") {
-        navigate("/staff-dashboard");
-      } else if (userData.role === "local leader") {
-        navigate("/leader-dashboard");
-      } else {
-        setErrorMessage(
-          "Your account role is not recognized. Please contact support."
-        );
-      }
+      if (userData.role === "admin") navigate("/admin-dashboard");
+      else if (userData.role === "charity staff") navigate("/staff-dashboard");
+      else if (userData.role === "local leader") navigate("/leader-dashboard");
+      else setErrorMessage("Your account role is not recognized. Please contact support.");
 
       startInactivityTimer();
     } catch (error) {
-      setErrorMessage("Invalid email or password. Please try again.");
+      setErrorMessage(
+        error.message === "User not found" || error.message === "Invalid password"
+          ? "Invalid email or password. Please try again."
+          : "An unexpected error occurred. Please try again."
+      );
+      setSnackbarOpen(true);
     } finally {
       setLoading(false);
     }
@@ -102,17 +127,17 @@ function Login() {
   }
 
   function resetInactivityTimer() {
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
+    if (inactivityTimer.current) {
+      clearTimeout(inactivityTimer.current);
+    }
+    inactivityTimer.current = setTimeout(() => {
       logoutUser();
       window.location.reload();
     }, INACTIVITY_TIME);
   }
 
   useEffect(() => {
-    if (alreadyLoggedIn) {
-      startInactivityTimer();
-    }
+    if (alreadyLoggedIn) startInactivityTimer();
     return () => {
       window.removeEventListener("mousemove", resetInactivityTimer);
       window.removeEventListener("keydown", resetInactivityTimer);
@@ -207,6 +232,14 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+            <Button
+            variant="text"
+            fullWidth
+            sx={{ mt: 2, color: "white", textDecoration: "underline" }}
+            onClick={() => navigate("/reset-password")}
+          >
+            Forgot Password?
+          </Button>
             <Button
               type="submit"
               variant="contained"

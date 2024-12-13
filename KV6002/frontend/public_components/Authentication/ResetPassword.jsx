@@ -26,12 +26,11 @@ function ResetPassword() {
 
     localStorage.setItem("localLeaders", JSON.stringify(updatedLeaders));
     localStorage.removeItem("email"); // Clean up email from local storage
-    navigate("/leader-dashboard");
   };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh", backgroundColor: "#D08C8C", padding: "2rem" }}>
-      <Typography variant="h4" sx={{ color: "white", mb: 3 }}>Reset Password</Typography>
+      <Typography variant="h4" sx={{ color: "white", mb: 3 }}>Reset Password (FRONT END ONLY - Full implementation in future release)</Typography>
       <TextField
         label="New Password"
         type="password"
