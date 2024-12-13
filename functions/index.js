@@ -2,9 +2,9 @@ const {
   onDocumentCreated,
   onDocumentDeleted,
 } = require("firebase-functions/v2/firestore");
-const {onSchedule} = require("firebase-functions/v2/scheduler"); // Correct import for scheduled functions
-const {onRequest} = require("firebase-functions/v2/https");
-const {Vonage} = require("@vonage/server-sdk");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onRequest } = require("firebase-functions/v2/https");
+const { Vonage } = require("@vonage/server-sdk");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -21,50 +21,50 @@ const vonage = new Vonage({
  * Sends a booking confirmation SMS to the customer.
  */
 exports.sendBookingNotification = onDocumentCreated(
-    {document: "Bookings/{bookingId}"},
-    async (event) => {
-      const bookingSnapshot = event.data;
+  { document: "Bookings/{bookingId}" },
+  async (event) => {
+    const bookingSnapshot = event.data;
 
-      if (!bookingSnapshot) {
-        console.error("No snapshot data found for the booking.");
-        return null;
-      }
-
-      const bookingData = bookingSnapshot.data();
-      const {phone, eventTitle, eventDate, uniqueCode} = bookingData;
-
-      if (!phone || !eventTitle || !eventDate || !uniqueCode) {
-        console.error("Missing required fields in booking:", bookingData);
-        return null;
-      }
-
-      // SMS content with the unique code
-      const message = `Thank you for booking "${eventTitle}" on ${eventDate}.\n\nTo cancel your booking, reply with your 4-digit code:\n${uniqueCode}`;
-
-      try {
-      // Send the SMS using Vonage
-        const response = await vonage.sms.send({
-          to: phone,
-          from: "447418318909", // Replace with your phone number
-          text: message,
-        });
-
-        console.log("SMS sent successfully:", response);
-      } catch (error) {
-        console.error("Failed to send SMS:", error);
-      }
-
+    if (!bookingSnapshot) {
+      console.error("No snapshot data found for the booking.");
       return null;
-    },
+    }
+
+    const bookingData = bookingSnapshot.data();
+    const { phone, eventTitle, eventDate, uniqueCode } = bookingData;
+
+    if (!phone || !eventTitle || !eventDate || !uniqueCode) {
+      console.error("Missing required fields in booking:", bookingData);
+      return null;
+    }
+
+    // SMS content with the unique code
+    const message = `Thank you for booking "${eventTitle}" on ${eventDate}.\n\nTo cancel your booking, reply with your 4-digit code:\n${uniqueCode}`;
+
+    try {
+      // Send the SMS using Vonage
+      const response = await vonage.sms.send({
+        to: phone,
+        from: "447418318909", // Replace with your phone number
+        text: message,
+      });
+
+      console.log("SMS sent successfully:", response);
+    } catch (error) {
+      console.error("Failed to send SMS:", error);
+    }
+
+    return null;
+  }
 );
 
 /**
  * Function 2: handleInboundSMS
  * Webhook function that listens for inbound SMS replies via Vonage.
- * Cancels the booking if the user replies with their 4-digit unique code.
+ * Cancels all bookings that match the user's unique code and phone number.
  */
 exports.handleInboundSMS = onRequest(async (req, res) => {
-  const {msisdn, text} = req.body;
+  const { msisdn, text } = req.body;
 
   console.log("Inbound SMS received:", req.body);
 
@@ -74,17 +74,16 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
   }
 
   const uniqueCode = text.trim(); // The user is expected to send just the unique code
-
   console.log("User sent unique code:", uniqueCode);
 
   try {
     const bookingsCollection = admin.firestore().collection("Bookings");
 
-    // Find the booking with the provided unique code
+    // Find all bookings with the provided unique code
     const bookingQuery = bookingsCollection.where(
-        "uniqueCode",
-        "==",
-        uniqueCode,
+      "uniqueCode",
+      "==",
+      uniqueCode
     );
     const bookingSnapshot = await bookingQuery.get();
 
@@ -94,23 +93,35 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
       return;
     }
 
-    const bookingDoc = bookingSnapshot.docs[0];
-    const bookingData = bookingDoc.data();
+    // Filter all bookings that match the phone number (msisdn)
+    const matchingBookings = bookingSnapshot.docs.filter(
+      (doc) => doc.data().phone === msisdn
+    );
 
-    // Verify the phone number matches
-    if (bookingData.phone !== msisdn) {
-      console.error("Phone number mismatch for booking:", uniqueCode);
-      res.status(200).send("Booking not found or phone number mismatch.");
+    if (matchingBookings.length === 0) {
+      console.log(
+        "No booking found with this code and phone number:",
+        uniqueCode,
+        msisdn
+      );
+      res.status(200).send("No booking found with this code and phone number.");
       return;
     }
 
-    // Update the booking status to 'Cancelled'
-    await bookingDoc.ref.update({status: "Cancelled"});
+    // Cancel all matching bookings
+    const batch = admin.firestore().batch();
+    matchingBookings.forEach((docRef) => {
+      batch.update(docRef.ref, { status: "Cancelled" });
+    });
+    await batch.commit();
 
-    console.log("Booking cancelled successfully:", uniqueCode);
+    console.log(
+      `Cancelled ${matchingBookings.length} booking(s) for unique code: ${uniqueCode}`
+    );
 
     // Send confirmation SMS to the customer
-    const confirmationMessage = `Your booking "${bookingData.eventTitle}" has been successfully cancelled.`;
+    const bookingData = matchingBookings[0].data();
+    const confirmationMessage = `Your booking(s) for "${bookingData.eventTitle}" has been successfully cancelled.`;
 
     try {
       const smsResponse = await vonage.sms.send({
@@ -120,14 +131,14 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
       });
 
       console.log(
-          "Cancellation confirmation SMS sent successfully:",
-          smsResponse,
+        "Cancellation confirmation SMS sent successfully:",
+        smsResponse
       );
     } catch (smsError) {
       console.error("Failed to send cancellation confirmation SMS:", smsError);
     }
 
-    res.status(200).send("Your booking has been successfully cancelled.");
+    res.status(200).send("Your booking(s) has been successfully cancelled.");
   } catch (error) {
     console.error("Error cancelling booking:", error);
     res.status(500).send("Failed to cancel booking.");
@@ -137,58 +148,62 @@ exports.handleInboundSMS = onRequest(async (req, res) => {
 /**
  * Function 3: notifyUsersOnEventDeletion
  * Triggered when an event document is deleted from the "Events" collection.
- * Notifies all users who booked the event and cancels their bookings.
+ * Notifies all users who still have 'Booked' status for the event and cancels those bookings.
  */
 exports.notifyUsersOnEventDeletion = onDocumentDeleted(
-    {document: "Events/{eventId}"},
-    async (event) => {
-      const deletedEventId = event.params.eventId;
+  { document: "Events/{eventId}" },
+  async (event) => {
+    const deletedEventId = event.params.eventId;
 
-      console.log("Event deleted:", deletedEventId);
+    console.log("Event deleted:", deletedEventId);
 
-      try {
-        const bookingsCollection = admin.firestore().collection("Bookings");
-        const bookingsSnapshot = await bookingsCollection
-            .where("eventId", "==", deletedEventId)
-            .get();
+    try {
+      const bookingsCollection = admin.firestore().collection("Bookings");
+      // Only aggregate bookings that have a status of "Booked"
+      const bookingsSnapshot = await bookingsCollection
+        .where("eventId", "==", deletedEventId)
+        .where("status", "==", "Booked")
+        .get();
 
-        if (bookingsSnapshot.empty) {
-          console.log("No bookings found for the deleted event.");
-          return;
-        }
-
-        const smsPromises = [];
-        bookingsSnapshot.forEach((doc) => {
-          const booking = doc.data();
-
-          if (booking.phone) {
-            const message = `We regret to inform you that the event "${booking.eventTitle}" has been cancelled. We apologize for the inconvenience.`;
-
-            // Send SMS
-            smsPromises.push(
-                vonage.sms.send({
-                  to: booking.phone,
-                  from: "447418318909", // Replace with your phone number
-                  text: message,
-                }),
-            );
-
-            // Update booking status to "Cancelled"
-            bookingsCollection.doc(doc.id).update({status: "Cancelled"});
-          }
-        });
-
-        // Wait for all SMS promises to resolve
-        await Promise.all(smsPromises);
-        console.log("All users have been notified, and bookings cancelled.");
-      } catch (error) {
-        console.error("Error notifying users about event deletion:", error);
+      if (bookingsSnapshot.empty) {
+        console.log("No active bookings found for the deleted event.");
+        return;
       }
-    },
+
+      const smsPromises = [];
+      bookingsSnapshot.forEach((doc) => {
+        const booking = doc.data();
+
+        if (booking.phone) {
+          const message = `We regret to inform you that the event "${booking.eventTitle}" has been cancelled. We apologize for the inconvenience.`;
+
+          // Send SMS
+          smsPromises.push(
+            vonage.sms.send({
+              to: booking.phone,
+              from: "447418318909", // Replace with your phone number
+              text: message,
+            })
+          );
+
+          // Update booking status to "Cancelled"
+          bookingsCollection.doc(doc.id).update({ status: "Cancelled" });
+        }
+      });
+
+      // Wait for all SMS promises to resolve
+      await Promise.all(smsPromises);
+      console.log(
+        "All active users have been notified, and their bookings cancelled."
+      );
+    } catch (error) {
+      console.error("Error notifying users about event deletion:", error);
+    }
+  }
 );
 
 /**
- * Function 3: scheduleReminderSMS
+ * Function 4: scheduleReminderSMS
  * Scheduled Cloud Function that runs every 24 hours.
  * Sends reminder SMS for bookings happening in the next 48 hours.
  */
@@ -199,10 +214,10 @@ exports.scheduleReminderSMS = onSchedule("every 24 hours", async (event) => {
 
     const bookingsCollection = admin.firestore().collection("Bookings");
 
-    // Query bookings for events happening within the next 48 hours
+    // Query bookings for events happening within the next 48 hours and still "Booked"
     const bookingsSnapshot = await bookingsCollection
-        .where("status", "==", "Booked")
-        .get();
+      .where("status", "==", "Booked")
+      .get();
 
     const smsPromises = [];
     bookingsSnapshot.forEach((doc) => {
@@ -212,11 +227,11 @@ exports.scheduleReminderSMS = onSchedule("every 24 hours", async (event) => {
       // Check if the eventDate is within the next 48 hours
       if (eventDate >= currentTime && eventDate <= targetTime) {
         smsPromises.push(
-            sendReminderSMS(
-                booking.phone,
-                booking.eventTitle,
-                eventDate.toLocaleDateString(),
-            ),
+          sendReminderSMS(
+            booking.phone,
+            booking.eventTitle,
+            eventDate.toLocaleDateString()
+          )
         );
       }
     });
