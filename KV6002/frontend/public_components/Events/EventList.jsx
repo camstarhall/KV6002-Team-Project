@@ -243,7 +243,10 @@ const EventList = () => {
               alt={event.Title}
             />
             <CardContent>
-              <Typography variant="h5" sx={{ color: "#7B3F3F" }}>
+              <Typography
+                variant="h5"
+                sx={{ color: "#7B3F3F" }}
+              >
                 {event.Title}
               </Typography>
               <Typography>
@@ -251,9 +254,43 @@ const EventList = () => {
               </Typography>
               <Typography>Location: {event.Location}</Typography>
 
-              <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
+              {/* Restriction Indicator */}
+              <Box
+                sx={{
+                  mt: 2,
+                  border: `2px solid ${
+                    event.isRestricted ? "orange" : "green"
+                  }`,
+                  color: event.isRestricted ? "orange" : "green",
+                  padding: "0.5rem",
+                  borderRadius: "4px",
+                  display: "inline-block",
+                  backgroundColor: "#ffffff",
+                  cursor: event.isRestricted ? "pointer" : "default",
+                }}
+              >
+                {event.isRestricted ? (
+                  <Tooltip
+                    title="This event is limited to our target charity audience. Extra information will be requested on the booking page. Visit the About page for more details."
+                    arrow
+                  >
+                    <Typography variant="body2">
+                      Eligible groups only
+                    </Typography>
+                  </Tooltip>
+                ) : (
+                  <Typography variant="body2">Everybody is welcome</Typography>
+                )}
+              </Box>
+
+              <Box
+                sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}
+              >
                 {/* Share Icon */}
-                <Tooltip title="Share this event" arrow>
+                <Tooltip
+                  title="Share this event"
+                  arrow
+                >
                   <IconButton
                     onClick={() => handleShare(event.id)}
                     color="primary"
@@ -262,8 +299,14 @@ const EventList = () => {
                   </IconButton>
                 </Tooltip>
 
-                <Link to={`/event/${event.id}`} state={{ event }}>
-                  <Button variant="contained" color="primary">
+                <Link
+                  to={`/event/${event.id}`}
+                  state={{ event }}
+                >
+                  <Button
+                    variant="contained"
+                    color="primary"
+                  >
                     View Details
                   </Button>
                 </Link>
