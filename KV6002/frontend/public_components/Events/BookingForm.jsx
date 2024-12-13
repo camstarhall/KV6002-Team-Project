@@ -9,15 +9,7 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  getDocs,
-  doc,
-  updateDoc,
-} from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 
 const BookingForm = ({ event, onCancel }) => {
@@ -30,7 +22,7 @@ const BookingForm = ({ event, onCancel }) => {
     address: "",
     employmentStatus: "",
     monthlySalary: "",
-    phoneExtension: "+60", // Default extension (Malaysia)
+    phoneExtension: "60", // Default extension (Malaysia) changed from "+60" to "60"
   });
   const [currentCapacity, setCurrentCapacity] = useState(0);
   const [error, setError] = useState("");
@@ -45,7 +37,28 @@ const BookingForm = ({ event, onCancel }) => {
     { label: "India (+91)", value: "91" },
   ];
 
-  // Fetch current booking capacity
+  // Validation functions
+  const isValidName = (name) => /^[A-Za-z\s]+$/.test(name.trim());
+  const isValidEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const isValidAddress = (address) => address.trim().length >= 5;
+
+  const getMaxPhoneLength = (extension) => {
+    // Adjust these limits as needed
+    switch (extension) {
+      case "60": // Malaysia
+        return 15;
+      case "44": // UK
+        return 13;
+      case "1": // USA
+        return 11;
+      case "91": // India
+        return 13;
+      default:
+        return 15;
+    }
+  };
+
   const fetchCurrentCapacity = async () => {
     try {
       const bookingsQuery = query(
@@ -63,42 +76,6 @@ const BookingForm = ({ event, onCancel }) => {
   useEffect(() => {
     fetchCurrentCapacity();
   }, []);
-
-  const generateUniqueCode = async () => {
-    let uniqueCode;
-    let isUnique = false;
-
-    const bookingsCollection = collection(db, "Bookings");
-
-    while (!isUnique) {
-      // Generate a random 4-digit code as a string
-      uniqueCode = Math.floor(1000 + Math.random() * 9000).toString();
-
-      // Check if the code already exists in the Bookings collection
-      const existingCodeQuery = query(
-        bookingsCollection,
-        where("uniqueCode", "==", uniqueCode)
-      );
-      const existingCodeSnapshot = await getDocs(existingCodeQuery);
-
-      if (existingCodeSnapshot.empty) {
-        isUnique = true; // Code is unique
-      }
-    }
-
-    return uniqueCode;
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const isValidName = (name) => /^[a-zA-Z\s]+$/.test(name.trim());
-  const isValidPhone = (phone) => /^[0-9]{7,15}$/.test(phone.trim());
-  const isValidEmail = (email) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const isValidAddress = (address) => address.trim().length >= 5;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -118,7 +95,7 @@ const BookingForm = ({ event, onCancel }) => {
       setToastOpen(true);
       return;
     }
-    if (!isValidPhone(formData.phone)) {
+    if (!isValidPhone(formData.phone, formData.phoneExtension)) {
       setError("Please enter a valid phone number.");
       setToastOpen(true);
       return;
@@ -138,10 +115,10 @@ const BookingForm = ({ event, onCancel }) => {
     if (
       event.isRestricted &&
       formData.employmentStatus === "Employed" &&
-      parseFloat(formData.monthlySalary) >= 1500
+      parseFloat(formData.monthlySalary) >= 5250
     ) {
       setError(
-        "Your monthly salary must be less than RM 1500 to qualify for booking."
+        "Your monthly household income must be less than RM 5250 to qualify for booking."
       );
       setToastOpen(true);
       return;
@@ -189,8 +166,21 @@ const BookingForm = ({ event, onCancel }) => {
         userId = existingUserSnapshot.docs[0].id;
       }
 
-      // Generate a unique code for the booking
-      const uniqueCode = await generateUniqueCode();
+      // Check if a booking already exists for the same event and phone number
+      const existingBookingQuery = query(
+        bookingsCollection,
+        where("eventId", "==", event.id),
+        where("phone", "==", fullPhoneNumber)
+      );
+      const existingBookingSnapshot = await getDocs(existingBookingQuery);
+
+      if (!existingBookingSnapshot.empty) {
+        setError(
+          "You have already booked this event. Only one booking is allowed per event."
+        );
+        setToastOpen(true);
+        return;
+      }
 
       // Save new booking to the Bookings collection
       await addDoc(bookingsCollection, {
@@ -202,7 +192,7 @@ const BookingForm = ({ event, onCancel }) => {
         bookingDate: new Date().toISOString(),
         userId: userId,
         eventDate: event.Date,
-        uniqueCode: uniqueCode, // Add the unique code to the booking
+        uniqueCode: event.uniqueCode, // Use the event's unique code
       });
 
       setSuccess("Booking successful!");
@@ -216,7 +206,7 @@ const BookingForm = ({ event, onCancel }) => {
         address: "",
         employmentStatus: "",
         monthlySalary: "",
-        phoneExtension: "+60",
+        phoneExtension: "60",
       });
       fetchCurrentCapacity();
     } catch (err) {
@@ -224,6 +214,31 @@ const BookingForm = ({ event, onCancel }) => {
       setError("An error occurred while processing your booking.");
       setToastOpen(true);
     }
+  };
+
+  const isValidPhone = (phone, extension) => {
+    const extensionLength = extension.length;
+    const maxLen = getMaxPhoneLength(extension);
+    return /^[0-9]+$/.test(phone) && phone.length + extensionLength <= maxLen;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    // Check phone length dynamically based on selected extension
+    if (name === "phone") {
+      const extensionLength = formData.phoneExtension.length;
+      const maxLen = getMaxPhoneLength(formData.phoneExtension);
+      if (value.length + extensionLength > maxLen) {
+        setError(
+          `Phone number exceeds the maximum allowed length for this extension.`
+        );
+        setToastOpen(true);
+        return;
+      }
+    }
+
+    setFormData({ ...formData, [name]: value });
   };
 
   return (
@@ -363,7 +378,7 @@ const BookingForm = ({ event, onCancel }) => {
           </TextField>
           {formData.employmentStatus === "Employed" && (
             <TextField
-              label="Monthly Salary (RM)"
+              label="Monthly Household Income (RM)"
               name="monthlySalary"
               type="number"
               value={formData.monthlySalary}
