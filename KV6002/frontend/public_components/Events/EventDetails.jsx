@@ -69,7 +69,10 @@ const EventDetails = () => {
     return (
       <Box sx={{ textAlign: "center", mt: 4 }}>
         <CircularProgress />
-        <Typography variant="body1" sx={{ mt: 2 }}>
+        <Typography
+          variant="body1"
+          sx={{ mt: 2 }}
+        >
           Loading event details...
         </Typography>
       </Box>
@@ -87,6 +90,8 @@ const EventDetails = () => {
   const spacesLeft = Math.max(event.Capacity - currentCapacity, 0);
   const isFullyBooked = spacesLeft === 0;
 
+  const isPastEvent = new Date(event.Date) < new Date();
+
   return (
     <Box
       sx={{
@@ -97,16 +102,30 @@ const EventDetails = () => {
     >
       {/* Back to Events Button */}
       <Box sx={{ mb: 2 }}>
-        <Link to="/events" style={{ textDecoration: "none" }}>
-          <Button variant="outlined" color="primary">
+        <Link
+          to="/events"
+          style={{ textDecoration: "none" }}
+        >
+          <Button
+            variant="outlined"
+            color="primary"
+          >
             Back to Events
           </Button>
         </Link>
       </Box>
 
       {!showBookingForm ? (
-        <Grid container spacing={4} justifyContent="center">
-          <Grid item xs={12} md={6}>
+        <Grid
+          container
+          spacing={4}
+          justifyContent="center"
+        >
+          <Grid
+            item
+            xs={12}
+            md={6}
+          >
             <Card
               sx={{
                 boxShadow: 3,
@@ -136,7 +155,9 @@ const EventDetails = () => {
                 </Typography>
                 <Typography sx={{ mb: 2, color: "#555" }}>
                   <strong>Spaces Left:</strong>{" "}
-                  {isFullyBooked ? "No spaces left" : `${spacesLeft} spaces available`}
+                  {isFullyBooked
+                    ? "No spaces left"
+                    : `${spacesLeft} spaces available`}
                 </Typography>
                 <Typography sx={{ mb: 3, color: "#555" }}>
                   <strong>Description:</strong> {event.Description}
@@ -144,18 +165,28 @@ const EventDetails = () => {
 
                 <Button
                   variant="contained"
-                  color={isFullyBooked ? "secondary" : "primary"}
+                  color={isFullyBooked || isPastEvent ? "secondary" : "primary"}
                   fullWidth
-                  onClick={() => !isFullyBooked && setShowBookingForm(true)}
-                  disabled={isFullyBooked}
+                  onClick={() =>
+                    !isFullyBooked && !isPastEvent && setShowBookingForm(true)
+                  }
+                  disabled={isFullyBooked || isPastEvent}
                 >
-                  {isFullyBooked ? "Fully Booked" : "Book / RSVP"}
+                  {isPastEvent
+                    ? "This event can no longer be booked"
+                    : isFullyBooked
+                    ? "Fully Booked"
+                    : "Book / RSVP"}
                 </Button>
               </CardContent>
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid
+            item
+            xs={12}
+            md={6}
+          >
             <Box
               component="img"
               src={event.imageURL || "/placeholder.png"}
