@@ -166,17 +166,18 @@ const BookingForm = ({ event, onCancel }) => {
         userId = existingUserSnapshot.docs[0].id;
       }
 
-      // Check if a booking already exists for the same event and phone number
+      // Check if a booking already exists for the same event and phone number and is still active
       const existingBookingQuery = query(
         bookingsCollection,
         where("eventId", "==", event.id),
-        where("phone", "==", fullPhoneNumber)
+        where("phone", "==", fullPhoneNumber),
+        where("status", "==", "Booked")
       );
       const existingBookingSnapshot = await getDocs(existingBookingQuery);
 
       if (!existingBookingSnapshot.empty) {
         setError(
-          "You have already booked this event. Only one booking is allowed per event."
+          "You have already booked this event. Only one active booking is allowed per event."
         );
         setToastOpen(true);
         return;
