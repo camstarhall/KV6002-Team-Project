@@ -8,6 +8,11 @@ import {
   CardContent,
   IconButton,
   TextField,
+  Checkbox,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import {
   collection,
@@ -24,6 +29,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 
 function EventManagement() {
   const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [showPastEvents, setShowPastEvents] = useState(false);
+  const [filterMethod, setFilterMethod] = useState("Date");
+  const [sortOrder, setSortOrder] = useState("Ascending");
   const [formData, setFormData] = useState({
     Title: "",
     Date: "",
@@ -32,7 +41,7 @@ function EventManagement() {
     imageURL: "",
     Capacity: 0,
     isRestricted: false,
-    Status: "Active", // Default status
+    Status: "Active",
   });
   const [isEdit, setIsEdit] = useState(false);
   const [currentEventId, setCurrentEventId] = useState(null);
@@ -41,13 +50,37 @@ function EventManagement() {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  // New states for delete confirmation
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteEventId, setDeleteEventId] = useState(null);
 
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  useEffect(() => {
+    let filtered = events;
+
+    if (!showPastEvents) {
+      const today = new Date();
+      filtered = filtered.filter((event) => new Date(event.Date) >= today);
+    }
+
+    if (filterMethod === "Date") {
+      filtered.sort((a, b) =>
+        sortOrder === "Ascending"
+          ? new Date(a.Date) - new Date(b.Date)
+          : new Date(b.Date) - new Date(a.Date)
+      );
+    } else if (filterMethod === "Alphabetical") {
+      filtered.sort((a, b) =>
+        sortOrder === "Ascending"
+          ? a.Title.localeCompare(b.Title)
+          : b.Title.localeCompare(a.Title)
+      );
+    }
+
+    setFilteredEvents(filtered);
+  }, [events, showPastEvents, filterMethod, sortOrder]);
 
   const fetchEvents = async () => {
     try {
@@ -68,8 +101,8 @@ function EventManagement() {
     const existingCodes = events.map((event) => event.uniqueCode);
     let uniqueCode;
     do {
-      uniqueCode = Math.floor(1000 + Math.random() * 9000).toString(); // Generate a 4-digit code
-    } while (existingCodes.includes(uniqueCode)); // Ensure the code is unique
+      uniqueCode = Math.floor(1000 + Math.random() * 9000).toString();
+    } while (existingCodes.includes(uniqueCode));
     return uniqueCode;
   };
 
@@ -108,16 +141,13 @@ function EventManagement() {
     e.preventDefault();
     setError("");
 
-    // Validate capacity
     if (formData.Capacity <= 0) {
       setError("The event capacity must be greater than 0.");
       return;
     }
 
-    // Validate date (cannot be in the past)
     const selectedDate = new Date(formData.Date);
     const today = new Date();
-    // Clear time from today's date to compare only date portion
     today.setHours(0, 0, 0, 0);
 
     if (selectedDate < today) {
@@ -131,7 +161,7 @@ function EventManagement() {
         const eventDoc = doc(db, "Events", currentEventId);
         await updateDoc(eventDoc, formData);
       } else {
-        const uniqueCode = await generateUniqueCode(); // Generate unique 4-digit code
+        const uniqueCode = await generateUniqueCode();
         const newEventData = {
           ...formData,
           uniqueCode,
@@ -160,9 +190,8 @@ function EventManagement() {
     if (!deleteEventId) return;
     try {
       const eventDoc = doc(db, "Events", deleteEventId);
-      await deleteDoc(eventDoc); // Delete the event
-      fetchEvents(); // Refresh the event list
-      console.log("Event deleted successfully:", deleteEventId);
+      await deleteDoc(eventDoc);
+      fetchEvents();
     } catch (error) {
       console.error("Error deleting event:", error);
       alert("Failed to delete event.");
@@ -191,7 +220,6 @@ function EventManagement() {
       (snapshot) => {
         const progress =
           (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        console.log(`Upload is ${progress}% done`);
       },
       (error) => {
         console.error("Upload failed:", error);
@@ -208,22 +236,62 @@ function EventManagement() {
 
   return (
     <Box sx={{ padding: "2rem", backgroundColor: "#f8e8e8" }}>
-      <Typography
-        variant="h4"
-        sx={{ color: "#7B3F3F", mb: 3 }}
-      >
+      <Typography variant="h4" sx={{ color: "#7B3F3F", mb: 3 }}>
         Event Management
       </Typography>
 
-      <Button
-        variant="contained"
-        onClick={() => handleOpenModal()}
-        sx={{ mb: 3 }}
+      {/* Filter and sorting controls */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          flexDirection: { xs: "column", sm: "row" },
+          gap: 2,
+          mb: 4,
+        }}
       >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Checkbox
+            checked={showPastEvents}
+            onChange={(e) => setShowPastEvents(e.target.checked)}
+            sx={{ color: "green" }}
+          />
+          <Typography sx={{ color: "green", fontWeight: "bold" }}>
+            Show Past Events
+          </Typography>
+        </Box>
+
+        <FormControl sx={{ minWidth: 150, backgroundColor: "green" }}>
+          <InputLabel sx={{ color: "white" }}>Filter By</InputLabel>
+          <Select
+            value={filterMethod}
+            onChange={(e) => setFilterMethod(e.target.value)}
+            sx={{ color: "white" }}
+          >
+            <MenuItem value="Date">Date</MenuItem>
+            <MenuItem value="Alphabetical">Alphabetical</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl sx={{ minWidth: 150, backgroundColor: "green" }}>
+          <InputLabel sx={{ color: "white" }}>Sort Order</InputLabel>
+          <Select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            sx={{ color: "white" }}
+          >
+            <MenuItem value="Ascending">Ascending</MenuItem>
+            <MenuItem value="Descending">Descending</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Button variant="contained" onClick={() => handleOpenModal()} sx={{ mb: 3 }}>
         Add Event
       </Button>
 
-      {events.map((event) => (
+      {filteredEvents.map((event) => (
         <Card
           key={event.id}
           sx={{
@@ -263,10 +331,7 @@ function EventManagement() {
             )}
           </CardContent>
           <Box>
-            <IconButton
-              color="primary"
-              onClick={() => handleOpenModal(event)}
-            >
+            <IconButton color="primary" onClick={() => handleOpenModal(event)}>
               <EditIcon />
             </IconButton>
             <IconButton
@@ -279,10 +344,7 @@ function EventManagement() {
         </Card>
       ))}
 
-      <Modal
-        open={modalOpen}
-        onClose={handleCloseModal}
-      >
+      <Modal open={modalOpen} onClose={handleCloseModal}>
         <Box
           component="form"
           onSubmit={handleFormSubmit}
@@ -299,18 +361,11 @@ function EventManagement() {
             overflowY: "auto",
           }}
         >
-          <Typography
-            variant="h6"
-            sx={{ mb: 2 }}
-          >
+          <Typography variant="h6" sx={{ mb: 2 }}>
             {isEdit ? "Edit Event" : "Add Event"}
           </Typography>
           {error && (
-            <Typography
-              variant="body2"
-              color="error"
-              sx={{ mb: 2 }}
-            >
+            <Typography variant="body2" color="error" sx={{ mb: 2 }}>
               {error}
             </Typography>
           )}
@@ -318,9 +373,7 @@ function EventManagement() {
             label="Title"
             name="Title"
             value={formData.Title}
-            onChange={(e) =>
-              setFormData({ ...formData, Title: e.target.value })
-            }
+            onChange={(e) => setFormData({ ...formData, Title: e.target.value })}
             fullWidth
             sx={{ mb: 2 }}
             required
@@ -415,21 +468,13 @@ function EventManagement() {
               onChange={handleUploadImage}
             />
           </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-          >
+          <Button type="submit" variant="contained" fullWidth>
             {isEdit ? "Update Event" : "Add Event"}
           </Button>
         </Box>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        open={deleteConfirmOpen}
-        onClose={closeDeleteConfirmation}
-      >
+      <Modal open={deleteConfirmOpen} onClose={closeDeleteConfirmation}>
         <Box
           sx={{
             position: "absolute",
@@ -442,27 +487,17 @@ function EventManagement() {
             width: { xs: "90%", sm: "400px" },
           }}
         >
-          <Typography
-            variant="h6"
-            sx={{ mb: 2, color: "red" }}
-          >
+          <Typography variant="h6" sx={{ mb: 2, color: "red" }}>
             Confirm Delete
           </Typography>
           <Typography sx={{ mb: 2, color: "red" }}>
             Are you sure you want to delete this event? This cannot be undone.
           </Typography>
           <Box sx={{ display: "flex", gap: 2 }}>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={confirmDelete}
-            >
+            <Button variant="contained" color="error" onClick={confirmDelete}>
               Delete
             </Button>
-            <Button
-              variant="outlined"
-              onClick={closeDeleteConfirmation}
-            >
+            <Button variant="outlined" onClick={closeDeleteConfirmation}>
               Cancel
             </Button>
           </Box>

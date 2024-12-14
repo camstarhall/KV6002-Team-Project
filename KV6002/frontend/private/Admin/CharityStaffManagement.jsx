@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -17,7 +17,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Alert,
 } from "@mui/material";
 import { Delete, Edit } from "@mui/icons-material";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "firebase/firestore";
@@ -35,10 +34,14 @@ const CharityStaffManagement = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState(null);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [dialogType, setDialogType] = useState(""); // "success" or "error"
+  const [dialogMessage, setDialogMessage] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState(null);
+
+  // Ref to scroll to the form when editing
+  const formRef = useRef(null);
 
   useEffect(() => {
     fetchStaff();
@@ -51,7 +54,7 @@ const CharityStaffManagement = () => {
       const staffData = staffDocs.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setStaff(staffData);
     } catch (error) {
-      console.error("Error fetching staff:", error);
+      showDialog("error", "Error fetching staff data. Please try again.");
     }
   };
 
@@ -59,64 +62,39 @@ const CharityStaffManagement = () => {
     const { fullName, email, phone, position, password } = staffData;
 
     if (!fullName.trim() || !email.trim() || !phone.trim() || !position.trim() || !password.trim()) {
-      setErrorMessage("Please fill out all required fields.");
+      showDialog("error", "Please fill out all required fields.");
       return false;
     }
 
     const nameRegex = /^[a-zA-Z\s'-]{2,}$/;
 
     if (!nameRegex.test(fullName)) {
-      setErrorMessage("Full name must contain at least 2 alphabetic characters and no digits.");
+      showDialog("error", "Full name must contain at least 2 alphabetic characters and no digits.");
       return false;
     }
 
     if (!nameRegex.test(position)) {
-      setErrorMessage("Position must contain at least 2 alphabetic characters and no digits.");
+      showDialog("error", "Position must contain at least 2 alphabetic characters and no digits.");
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setErrorMessage("Please enter a valid email address.");
+      showDialog("error", "Please enter a valid email address.");
       return false;
     }
 
     const phoneRegex = /^[0-9]{10,15}$/;
     if (!phoneRegex.test(phone)) {
-      setErrorMessage("Phone number must be 10-15 digits long.");
+      showDialog("error", "Phone number must be 10-15 digits long.");
       return false;
     }
 
-    setErrorMessage("");
     return true;
-  };
-
-  const checkForDuplicates = async () => {
-    const staffCollection = collection(db, "CharityStaff");
-    const emailQuery = query(staffCollection, where("email", "==", staffData.email));
-    const phoneQuery = query(staffCollection, where("phone", "==", staffData.phone));
-
-    const emailSnapshot = await getDocs(emailQuery);
-    const phoneSnapshot = await getDocs(phoneQuery);
-
-    if (!emailSnapshot.empty && (!isEditing || editingStaffId !== emailSnapshot.docs[0].id)) {
-      setErrorMessage("A staff member with this email already exists.");
-      return true;
-    }
-
-    if (!phoneSnapshot.empty && (!isEditing || editingStaffId !== phoneSnapshot.docs[0].id)) {
-      setErrorMessage("A staff member with this phone number already exists.");
-      return true;
-    }
-
-    return false;
   };
 
   const handleAddStaff = async () => {
     if (!validateData()) return;
-
-    const isDuplicate = await checkForDuplicates();
-    if (isDuplicate) return;
 
     try {
       const sanitizedData = {
@@ -130,24 +108,27 @@ const CharityStaffManagement = () => {
       const staffCollection = collection(db, "CharityStaff");
       await addDoc(staffCollection, sanitizedData);
       fetchStaff();
-      setSuccessMessage("Staff member added successfully!");
+      showDialog("success", "Staff member added successfully!");
       resetForm();
     } catch (error) {
-      console.error("Error adding staff member:", error);
+      showDialog("error", "Error adding staff member. Please try again.");
     }
   };
 
   const handleEditStaff = (member) => {
+    resetForm(); // Clear form before editing
     setStaffData(member);
     setIsEditing(true);
     setEditingStaffId(member.id);
+
+    // Scroll to the form
+    if (formRef.current) {
+      formRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   const handleSaveEdit = async () => {
     if (!validateData()) return;
-
-    const isDuplicate = await checkForDuplicates();
-    if (isDuplicate) return;
 
     try {
       const sanitizedData = {
@@ -161,10 +142,10 @@ const CharityStaffManagement = () => {
       const staffDoc = doc(db, "CharityStaff", editingStaffId);
       await updateDoc(staffDoc, sanitizedData);
       fetchStaff();
-      setSuccessMessage("Staff member updated successfully!");
+      showDialog("success", "Staff member updated successfully!");
       resetForm();
     } catch (error) {
-      console.error("Error updating staff member:", error);
+      showDialog("error", "Error updating staff member. Please try again.");
     }
   };
 
@@ -198,12 +179,22 @@ const CharityStaffManagement = () => {
       const staffDoc = doc(db, "CharityStaff", staffToDelete.id);
       await deleteDoc(staffDoc);
       fetchStaff();
-      setSuccessMessage("Staff member deleted successfully!");
+      showDialog("success", "Staff member deleted successfully!");
     } catch (error) {
-      console.error("Error deleting staff member:", error);
+      showDialog("error", "Error deleting staff member. Please try again.");
     } finally {
       handleCloseDeleteDialog();
     }
+  };
+
+  const showDialog = (type, message) => {
+    setDialogType(type);
+    setDialogMessage(message);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
   };
 
   const handleInputChange = (e) => {
@@ -217,10 +208,7 @@ const CharityStaffManagement = () => {
         Manage Charity Staff
       </Typography>
 
-      {errorMessage && <Alert severity="error" sx={{ mb: 2 }}>{errorMessage}</Alert>}
-      {successMessage && <Alert severity="success" sx={{ mb: 2 }}>{successMessage}</Alert>}
-
-      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
+      <Box ref={formRef} sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
         <TextField
           label="Full Name *"
           name="fullName"
@@ -265,13 +253,22 @@ const CharityStaffManagement = () => {
           onChange={handleInputChange}
           fullWidth
         />
-        <Button
-          variant="contained"
-          sx={{ backgroundColor: "#7B3F3F", color: "white" }}
-          onClick={isEditing ? handleSaveEdit : handleAddStaff}
-        >
-          {isEditing ? "Save Changes" : "Add Staff"}
-        </Button>
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: "#7B3F3F", color: "white" }}
+            onClick={isEditing ? handleSaveEdit : handleAddStaff}
+          >
+            {isEditing ? "Save Changes" : "Add Staff"}
+          </Button>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={resetForm}
+          >
+            Clear
+          </Button>
+        </Box>
       </Box>
 
       <List>
@@ -307,6 +304,18 @@ const CharityStaffManagement = () => {
           </ListItem>
         ))}
       </List>
+
+      <Dialog open={dialogOpen} onClose={handleCloseDialog}>
+        <DialogTitle>{dialogType === "success" ? "Success" : "Error"}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{dialogMessage}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} autoFocus>
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirm Deletion</DialogTitle>

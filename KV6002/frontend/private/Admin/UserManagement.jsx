@@ -2,10 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
   Modal,
   TextField,
   Button,
@@ -14,6 +10,18 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { Delete, Edit } from "@mui/icons-material";
 import { collection, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
@@ -26,9 +34,16 @@ const UserManagement = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
 
+  // Sort state
+  const [sortOrder, setSortOrder] = useState("Ascending");
+
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    sortUsers();
+  }, [users, sortOrder]);
 
   // Fetch all users from Firestore
   const fetchUsers = async () => {
@@ -40,6 +55,16 @@ const UserManagement = () => {
     } catch (error) {
       console.error("Error fetching users:", error);
     }
+  };
+
+  const sortUsers = () => {
+    const sortedUsers = [...users];
+    if (sortOrder === "Ascending") {
+      sortedUsers.sort((a, b) => a.fullName.localeCompare(b.fullName));
+    } else {
+      sortedUsers.sort((a, b) => b.fullName.localeCompare(a.fullName));
+    }
+    setUsers(sortedUsers);
   };
 
   // Open modal for editing a user
@@ -108,56 +133,68 @@ const UserManagement = () => {
         Manage Users
       </Typography>
 
-      <List>
-        {users.map((user) => (
-          <ListItem
-            key={user.id}
-            sx={{
-              backgroundColor: "#ffffff",
-              borderRadius: "4px",
-              boxShadow: 1,
-              mb: 1,
-              padding: "1rem",
-              "&:hover": { backgroundColor: "#f0d6d6" },
-            }}
+      {/* Sorting */}
+      <Box sx={{ mb: 3, display: "flex", justifyContent: "flex-end" }}>
+        <FormControl sx={{ minWidth: 200 }}>
+          <InputLabel id="sort-order-label">Sort by Name</InputLabel>
+          <Select
+            labelId="sort-order-label"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
           >
-            <ListItemText
-              primary={
-                <Typography sx={{ color: "#7B3F3F", fontWeight: "bold" }}>
-                  {user.fullName}
-                </Typography>
-              }
-              secondary={
-                <>
-                  <Typography sx={{ color: "black" }}>Email: {user.email}</Typography>
-                  <Typography sx={{ color: "black" }}>Phone: {user.phone}</Typography>
-                  <Typography sx={{ color: "black" }}>Gender: {user.gender}</Typography>
-                  <Typography sx={{ color: "black" }}>
-                    Date of Birth: {user.dateOfBirth
-                      ? new Date(user.dateOfBirth).toLocaleDateString()
-                      : "N/A"}
-                  </Typography>
-                  <Typography sx={{ color: "black" }}>Address: {user.address}</Typography>
-                  <Typography sx={{ color: "black" }}>
-                    Employment Status: {user.employmentStatus}
-                  </Typography>
-                  {user.employmentStatus === "Employed" && (
-                    <Typography sx={{ color: "black" }}>
-                      Monthly Salary: RM {user.monthlySalary}
-                    </Typography>
-                  )}
-                </>
-              }
-            />
-            <IconButton color="primary" onClick={() => handleEdit(user)}>
-              <Edit />
-            </IconButton>
-            <IconButton color="error" onClick={() => handleOpenDeleteDialog(user)}>
-              <Delete />
-            </IconButton>
-          </ListItem>
-        ))}
-      </List>
+            <MenuItem value="Ascending">Ascending</MenuItem>
+            <MenuItem value="Descending">Descending</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
+      <TableContainer component={Paper} sx={{ mb: 3 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell><strong>Name</strong></TableCell>
+              <TableCell><strong>Email</strong></TableCell>
+              <TableCell><strong>Phone</strong></TableCell>
+              <TableCell><strong>Gender</strong></TableCell>
+              <TableCell><strong>Date of Birth</strong></TableCell>
+              <TableCell><strong>Address</strong></TableCell>
+              <TableCell><strong>Employment Status</strong></TableCell>
+              <TableCell><strong>Monthly Salary</strong></TableCell>
+              <TableCell><strong>Actions</strong></TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell>{user.fullName}</TableCell>
+                <TableCell>{user.email || "N/A"}</TableCell>
+                <TableCell>{user.phone || "N/A"}</TableCell>
+                <TableCell>{user.gender || "N/A"}</TableCell>
+                <TableCell>
+                  {user.dateOfBirth
+                    ? new Date(user.dateOfBirth).toLocaleDateString()
+                    : "N/A"}
+                </TableCell>
+                <TableCell>{user.address || "N/A"}</TableCell>
+                <TableCell>{user.employmentStatus || "N/A"}</TableCell>
+                <TableCell>
+                  {user.employmentStatus === "Employed"
+                    ? `RM ${user.monthlySalary}`
+                    : "N/A"}
+                </TableCell>
+                <TableCell>
+                  <IconButton color="primary" onClick={() => handleEdit(user)}>
+                    <Edit />
+                  </IconButton>
+                  <IconButton color="error" onClick={() => handleOpenDeleteDialog(user)}>
+                    <Delete />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* Edit Modal */}
       <Modal open={modalOpen} onClose={handleCloseModal}>

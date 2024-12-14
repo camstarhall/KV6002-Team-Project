@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -17,7 +17,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Alert,
 } from "@mui/material";
 import { Delete, Edit } from "@mui/icons-material";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, query, where, doc } from "firebase/firestore";
@@ -34,10 +33,14 @@ const LocalLeaderManagement = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editingLeaderId, setEditingLeaderId] = useState(null);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [dialogType, setDialogType] = useState(""); // "success" or "error"
+  const [dialogMessage, setDialogMessage] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leaderToDelete, setLeaderToDelete] = useState(null);
+
+  // Ref for the form container to scroll into view
+  const formRef = useRef(null);
 
   useEffect(() => {
     fetchLeaders();
@@ -50,7 +53,7 @@ const LocalLeaderManagement = () => {
       const leaderData = leaderDocs.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setLeaders(leaderData);
     } catch (error) {
-      console.error("Error fetching leaders:", error);
+      showDialog("error", "Error fetching leaders. Please try again.");
     }
   };
 
@@ -58,58 +61,43 @@ const LocalLeaderManagement = () => {
     const { fullName, email, phone, password } = leaderData;
 
     if (!fullName.trim() || !email.trim() || !phone.trim() || !password.trim()) {
-      setErrorMessage("Please fill out all required fields.");
+      showDialog("error", "Please fill out all required fields.");
       return false;
     }
 
     const nameRegex = /^[a-zA-Z\s'-]{2,}$/;
     if (!nameRegex.test(fullName)) {
-      setErrorMessage("Full name must contain at least 2 alphabetic characters and no digits.");
+      showDialog("error", "Full name must contain at least 2 alphabetic characters and no digits.");
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setErrorMessage("Please enter a valid email address.");
+      showDialog("error", "Please enter a valid email address.");
       return false;
     }
 
     const phoneRegex = /^[0-9]{10,15}$/;
     if (!phoneRegex.test(phone)) {
-      setErrorMessage("Phone number must be 10-15 digits long.");
+      showDialog("error", "Phone number must be 10-15 digits long.");
       return false;
     }
 
-    setErrorMessage("");
     return true;
   };
 
-  const checkForDuplicates = async () => {
-    const leadersCollection = collection(db, "LocalLeaders");
-    const emailQuery = query(leadersCollection, where("email", "==", leaderData.email));
-    const phoneQuery = query(leadersCollection, where("phone", "==", leaderData.phone));
+  const showDialog = (type, message) => {
+    setDialogType(type);
+    setDialogMessage(message);
+    setDialogOpen(true);
+  };
 
-    const emailSnapshot = await getDocs(emailQuery);
-    const phoneSnapshot = await getDocs(phoneQuery);
-
-    if (!emailSnapshot.empty && (!isEditing || editingLeaderId !== emailSnapshot.docs[0].id)) {
-      setErrorMessage("A leader with this email already exists.");
-      return true;
-    }
-
-    if (!phoneSnapshot.empty && (!isEditing || editingLeaderId !== phoneSnapshot.docs[0].id)) {
-      setErrorMessage("A leader with this phone number already exists.");
-      return true;
-    }
-
-    return false;
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
   };
 
   const handleAddLeader = async () => {
     if (!validateData()) return;
-
-    const isDuplicate = await checkForDuplicates();
-    if (isDuplicate) return;
 
     try {
       const sanitizedData = {
@@ -122,24 +110,27 @@ const LocalLeaderManagement = () => {
       const leadersCollection = collection(db, "LocalLeaders");
       await addDoc(leadersCollection, sanitizedData);
       fetchLeaders();
-      setSuccessMessage("Leader added successfully!");
+      showDialog("success", "Leader added successfully!");
       resetForm();
     } catch (error) {
-      console.error("Error adding leader:", error);
+      showDialog("error", "Error adding leader. Please try again.");
     }
   };
 
   const handleEditLeader = (leader) => {
+    resetForm(); // Ensure the form is reset before editing a new leader
     setLeaderData(leader);
     setIsEditing(true);
     setEditingLeaderId(leader.id);
+
+    // Scroll to the form
+    if (formRef.current) {
+      formRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   const handleSaveEdit = async () => {
     if (!validateData()) return;
-
-    const isDuplicate = await checkForDuplicates();
-    if (isDuplicate) return;
 
     try {
       const sanitizedData = {
@@ -152,10 +143,10 @@ const LocalLeaderManagement = () => {
       const leaderDoc = doc(db, "LocalLeaders", editingLeaderId);
       await updateDoc(leaderDoc, sanitizedData);
       fetchLeaders();
-      setSuccessMessage("Leader updated successfully!");
+      showDialog("success", "Leader updated successfully!");
       resetForm();
     } catch (error) {
-      console.error("Error updating leader:", error);
+      showDialog("error", "Error updating leader. Please try again.");
     }
   };
 
@@ -188,9 +179,9 @@ const LocalLeaderManagement = () => {
       const leaderDoc = doc(db, "LocalLeaders", leaderToDelete.id);
       await deleteDoc(leaderDoc);
       fetchLeaders();
-      setSuccessMessage("Leader deleted successfully!");
+      showDialog("success", "Leader deleted successfully!");
     } catch (error) {
-      console.error("Error deleting leader:", error);
+      showDialog("error", "Error deleting leader. Please try again.");
     } finally {
       handleCloseDeleteDialog();
     }
@@ -207,10 +198,7 @@ const LocalLeaderManagement = () => {
         Manage Local Leaders
       </Typography>
 
-      {errorMessage && <Alert severity="error" sx={{ mb: 2 }}>{errorMessage}</Alert>}
-      {successMessage && <Alert severity="success" sx={{ mb: 2 }}>{successMessage}</Alert>}
-
-      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
+      <Box ref={formRef} sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
         <TextField
           label="Full Name *"
           name="fullName"
@@ -248,13 +236,18 @@ const LocalLeaderManagement = () => {
           onChange={handleInputChange}
           fullWidth
         />
-        <Button
-          variant="contained"
-          sx={{ backgroundColor: "#7B3F3F", color: "white" }}
-          onClick={isEditing ? handleSaveEdit : handleAddLeader}
-        >
-          {isEditing ? "Save Changes" : "Add Leader"}
-        </Button>
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <Button
+            variant="contained"
+            sx={{ backgroundColor: "#7B3F3F", color: "white" }}
+            onClick={isEditing ? handleSaveEdit : handleAddLeader}
+          >
+            {isEditing ? "Save Changes" : "Add Leader"}
+          </Button>
+          <Button variant="outlined" color="secondary" onClick={resetForm}>
+            Clear
+          </Button>
+        </Box>
       </Box>
 
       <List>
@@ -289,6 +282,18 @@ const LocalLeaderManagement = () => {
           </ListItem>
         ))}
       </List>
+
+      <Dialog open={dialogOpen} onClose={handleCloseDialog}>
+        <DialogTitle>{dialogType === "success" ? "Success" : "Error"}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{dialogMessage}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} autoFocus>
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirm Deletion</DialogTitle>

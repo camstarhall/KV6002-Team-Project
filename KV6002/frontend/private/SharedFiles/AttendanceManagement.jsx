@@ -11,17 +11,12 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
 } from "@mui/material";
 import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 
 const AttendanceManagement = () => {
   const [bookings, setBookings] = useState([]);
-  const [searchType, setSearchType] = useState("bookingId");
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [searchExecuted, setSearchExecuted] = useState(false);
@@ -89,20 +84,11 @@ const AttendanceManagement = () => {
 
     const query = searchQuery.trim().toLowerCase();
 
-    const matchedBookings = bookings.filter((booking) => {
-      switch (searchType) {
-        case "bookingId":
-          return booking.bookingId?.toLowerCase() === query;
-        case "phone":
-          return booking.userPhone?.toLowerCase() === query;
-        case "dateOfBirth":
-          return booking.userDateOfBirth === query;
-        case "name":
-          return booking.userName?.toLowerCase().includes(query);
-        default:
-          return false;
-      }
-    });
+    const matchedBookings = bookings.filter(
+      (booking) =>
+        booking.userPhone?.toLowerCase() === query ||
+        booking.userName?.toLowerCase().includes(query)
+    );
 
     setFilteredBookings(matchedBookings);
   };
@@ -141,24 +127,12 @@ const AttendanceManagement = () => {
 
       {/* Search Controls */}
       <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-        <FormControl fullWidth>
-          <InputLabel>Search By</InputLabel>
-          <Select value={searchType} onChange={(e) => setSearchType(e.target.value)}>
-            <MenuItem value="bookingId">Booking ID</MenuItem>
-            <MenuItem value="phone">Phone Number</MenuItem>
-            <MenuItem value="dateOfBirth">Date of Birth</MenuItem>
-            <MenuItem value="name">Name</MenuItem>
-          </Select>
-        </FormControl>
         <TextField
-          label={`Enter ${
-            searchType === "dateOfBirth" ? "DOB (yyyy-MM-dd)" : searchType
-          }`}
+          label="Search by Phone or Name"
           fullWidth
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          type={searchType === "dateOfBirth" ? "date" : "text"}
-          InputLabelProps={searchType === "dateOfBirth" ? { shrink: true } : {}}
+          type="text"
         />
         <Button
           variant="contained"
