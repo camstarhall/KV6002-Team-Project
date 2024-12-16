@@ -103,7 +103,7 @@ function Login() {
 
     try {
       const userData = await validateUser(email, password);
-      loginCookieSet(email);
+      loginCookieSet(email, userData.role);
 
       if (userData.role === "admin") navigate("/admin-dashboard");
       else if (userData.role === "charity staff") navigate("/staff-dashboard");
