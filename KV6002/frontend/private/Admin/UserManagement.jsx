@@ -33,8 +33,6 @@ const UserManagement = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-
-  // Sort state
   const [sortOrder, setSortOrder] = useState("Ascending");
 
   useEffect(() => {
@@ -45,7 +43,6 @@ const UserManagement = () => {
     sortUsers();
   }, [users, sortOrder]);
 
-  // Fetch all users from Firestore
   const fetchUsers = async () => {
     try {
       const usersCollection = collection(db, "Users");
@@ -60,59 +57,91 @@ const UserManagement = () => {
   const sortUsers = () => {
     const sortedUsers = [...users];
     if (sortOrder === "Ascending") {
-      sortedUsers.sort((a, b) => a.fullName.localeCompare(b.fullName));
+      sortedUsers.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
     } else {
-      sortedUsers.sort((a, b) => b.fullName.localeCompare(a.fullName));
+      sortedUsers.sort((a, b) => (b.fullName || "").localeCompare(a.fullName || ""));
     }
     setUsers(sortedUsers);
   };
 
-  // Open modal for editing a user
   const handleEdit = (user) => {
     setEditUser(user);
     setModalOpen(true);
   };
 
-  // Close the modal
   const handleCloseModal = () => {
     setEditUser(null);
     setModalOpen(false);
   };
 
-  // Handle form submission for updating user details
   const handleUpdate = async (e) => {
     e.preventDefault();
 
-    if (editUser) {
-      try {
-        const userDoc = doc(db, "Users", editUser.id);
-        await updateDoc(userDoc, editUser);
-        fetchUsers(); // Refresh user list
-        handleCloseModal();
-      } catch (error) {
-        console.error("Error updating user:", error);
+    // Required fields validation
+    const requiredFields = ["fullName", "phone", "gender", "dateOfBirth", "address", "employmentStatus"];
+    for (let field of requiredFields) {
+      if (!editUser?.[field]?.trim()) {
+        alert(`The field "${field}" cannot be empty.`);
+        return;
       }
+    }
+
+    // Email validation (optional but must be valid if provided)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (editUser.email && !emailRegex.test(editUser.email)) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    // Phone validation (must include a valid country code and length)
+    const phoneRegex = /^\+(60\d{9}|44\d{10}|1\d{10}|91\d{10})$/; // Malaysia (+60), UK (+44), US (+1), India (+91)
+    if (!phoneRegex.test(editUser.phone)) {
+      alert(
+        "Please enter a valid phone number with the correct country code (e.g., +60, +44, +1, +91) followed by the correct number of digits."
+      );
+      return;
+    }
+
+    // Ensure phone number is unique
+    const isDuplicatePhone = users.some(
+      (user) => user.phone === editUser.phone && user.id !== editUser.id
+    );
+    if (isDuplicatePhone) {
+      alert("Phone number already exists. Please use a unique phone number.");
+      return;
+    }
+
+    // Salary validation (must be a numeric value)
+    if (editUser.employmentStatus === "Employed" && isNaN(editUser.monthlySalary)) {
+      alert("Monthly Salary must be a numeric value.");
+      return;
+    }
+
+    try {
+      const userDoc = doc(db, "Users", editUser.id);
+      await updateDoc(userDoc, editUser);
+      fetchUsers();
+      handleCloseModal();
+    } catch (error) {
+      console.error("Error updating user:", error);
     }
   };
 
-  // Open confirmation dialog for deletion
   const handleOpenDeleteDialog = (user) => {
     setUserToDelete(user);
     setDialogOpen(true);
   };
 
-  // Close confirmation dialog
   const handleCloseDeleteDialog = () => {
     setUserToDelete(null);
     setDialogOpen(false);
   };
 
-  // Delete a user
   const handleDeleteUser = async () => {
     if (userToDelete) {
       try {
         await deleteDoc(doc(db, "Users", userToDelete.id));
-        fetchUsers(); // Refresh user list
+        fetchUsers();
       } catch (error) {
         console.error("Error deleting user:", error);
       } finally {
@@ -121,7 +150,6 @@ const UserManagement = () => {
     }
   };
 
-  // Handle input changes in the modal
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setEditUser({ ...editUser, [name]: value });
@@ -133,7 +161,6 @@ const UserManagement = () => {
         Manage Users
       </Typography>
 
-      {/* Sorting */}
       <Box sx={{ mb: 3, display: "flex", justifyContent: "flex-end" }}>
         <FormControl sx={{ minWidth: 200 }}>
           <InputLabel id="sort-order-label">Sort by Name</InputLabel>
@@ -196,7 +223,6 @@ const UserManagement = () => {
         </Table>
       </TableContainer>
 
-      {/* Edit Modal */}
       <Modal open={modalOpen} onClose={handleCloseModal}>
         <Box
           component="form"
@@ -231,6 +257,7 @@ const UserManagement = () => {
             onChange={handleInputChange}
             fullWidth
             sx={{ mb: 2 }}
+            helperText="Optional, but must be valid if provided"
           />
           <TextField
             label="Phone"
@@ -239,6 +266,7 @@ const UserManagement = () => {
             onChange={handleInputChange}
             fullWidth
             sx={{ mb: 2 }}
+            helperText="Include a valid country code (e.g., +60, +44, +1, +91)"
           />
           <TextField
             label="Date of Birth"
@@ -271,9 +299,14 @@ const UserManagement = () => {
               label="Monthly Salary (RM)"
               name="monthlySalary"
               value={editUser?.monthlySalary || ""}
-              onChange={handleInputChange}
+              onChange={(e) => {
+                if (!isNaN(e.target.value) || e.target.value === "") {
+                  handleInputChange(e);
+                }
+              }}
               fullWidth
               sx={{ mb: 2 }}
+              helperText="Only numeric values are allowed."
             />
           )}
           <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
@@ -287,7 +320,6 @@ const UserManagement = () => {
         </Box>
       </Modal>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirm Deletion</DialogTitle>
         <DialogContent>
