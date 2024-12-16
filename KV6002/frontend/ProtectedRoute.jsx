@@ -1,56 +1,71 @@
 // KV6002/frontend/ProtectedRoute.jsx
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
-import { existingLoginCheck, getCookies } from "./public_components/Authentication/cookieHandling";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import {
+  existingLoginCheck,
+  getCookies,
+} from "./public_components/Authentication/cookieHandling";
+import CryptoJS from "crypto-js";
 
 const db = getFirestore();
 
-// Queries a given collection by email field to get user data
-async function getUserByEmail(collectionName, userEmail) {
-  const q = query(collection(db, collectionName), where("email", "==", userEmail));
-  const querySnapshot = await getDocs(q);
-  if (querySnapshot.empty) {
+// Hashing function to generate the document ID from the user's email
+async function hashUserDetails(userInput) {
+  const hashed = CryptoJS.SHA256(userInput)
+    .toString(CryptoJS.enc.Base64)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  return hashed;
+}
+
+// Retrieves user data by using the hashed email as the doc ID
+// MAKE SURE THIS DOESNT CHANGE TO SEARCHING EMAIL BY FIELD - THE DOCUMENT ID IS A HASHED EMAIL
+async function getUserByHashedEmail(collectionName, userEmail) {
+  const hashedEmail = await hashUserDetails(userEmail);
+  const docRef = doc(db, collectionName, hashedEmail);
+  const docSnap = await getDoc(docRef);
+
+  if (!docSnap.exists()) {
     return null;
   }
-  return querySnapshot.docs[0].data();
+  return docSnap.data();
 }
 
 async function getUserRole(userEmail) {
   // Check Admin
-  let userData = await getUserByEmail("Admin", userEmail);
+  let userData = await getUserByHashedEmail("Admin", userEmail);
   if (userData && userData.role === "admin") return "admin";
 
   // Check CharityStaff
-  userData = await getUserByEmail("CharityStaff", userEmail);
+  userData = await getUserByHashedEmail("CharityStaff", userEmail);
   if (userData && userData.role === "charity staff") return "charity staff";
 
   // Check LocalLeaders
-  userData = await getUserByEmail("LocalLeaders", userEmail);
+  userData = await getUserByHashedEmail("LocalLeaders", userEmail);
   if (userData && userData.role === "local leader") return "local leader";
 
   return null;
 }
 
 const ProtectedRoute = ({ role, children }) => {
-  const [authorized, setAuthorized] = useState(null); // null = checking, true or false after check
+  const [authorized, setAuthorized] = useState(null); // null = checking
 
   useEffect(() => {
     const isLoggedIn = existingLoginCheck();
+
     if (!isLoggedIn) {
-      // No username cookie, not logged in
       setAuthorized(false);
       return;
     }
 
-    // If logged in, get the username (email) from cookie
     const userEmail = getCookies("username");
     if (!userEmail) {
       setAuthorized(false);
       return;
     }
 
-    // Check user role from database
     (async () => {
       const userRole = await getUserRole(userEmail);
       if (userRole === role) {
@@ -63,7 +78,7 @@ const ProtectedRoute = ({ role, children }) => {
 
   if (authorized === null) {
     // Still checking
-    return null; // or a loading spinner
+    return null; // Could return a loading spinner
   }
 
   return authorized ? children : <Navigate to="/login" />;

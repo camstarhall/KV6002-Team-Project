@@ -1,8 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Box, Typography, TextField, Button, Snackbar, Alert, useMediaQuery } from "@mui/material";
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Snackbar,
+  Alert,
+  useMediaQuery,
+} from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc, getFirestore } from "firebase/firestore";
-import { loginCookieSet, existingLoginCheck, logoutUser } from "./cookieHandling";
+import {
+  loginCookieSet,
+  existingLoginCheck,
+  logoutUser,
+} from "./cookieHandling";
 import CryptoJS from "crypto-js"; // Import CryptoJS
 
 const db = getFirestore();
@@ -16,7 +28,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const navigate = useNavigate();
-  
+
   //Change element size for mobile.
   const isMobile = useMediaQuery("(max-width:600px)");
 
@@ -25,8 +37,6 @@ function Login() {
 
   async function getUserByEmail(collectionName, userEmail) {
     const hashedEmail = await hashUserDetails(userEmail);
-    console.log("Hashed Email to query:", hashedEmail); // Debug log
-
     // Reference to the document using the hashed email as the document ID
     const docRef = doc(db, collectionName, hashedEmail);
     const docSnap = await getDoc(docRef);
@@ -36,15 +46,16 @@ function Login() {
       return null;
     }
 
-    return docSnap.data();  // Return the document data if it exists
+    return docSnap.data(); // Return the document data if it exists
   }
 
-  async function hashUserDetails(userInput) { //Hashes inputted details, removes any characters which aren't accepted in firebase DB.
-    const hashed = CryptoJS.SHA256(userInput).toString(CryptoJS.enc.Base64)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-    console.log("Hashed Input (URL-Safe):", hashed); // Debug log
+  async function hashUserDetails(userInput) {
+    //Hashes inputted details, removes any characters which aren't accepted in firebase DB.
+    const hashed = CryptoJS.SHA256(userInput)
+      .toString(CryptoJS.enc.Base64)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
     return hashed;
   }
 
@@ -81,7 +92,6 @@ function Login() {
 
       throw new Error("User not found");
     } catch (error) {
-      console.error("Validation Error:", error);
       throw error;
     }
   }
@@ -93,19 +103,21 @@ function Login() {
 
     try {
       const userData = await validateUser(email, password);
-      console.log(userData.role); //TESTING PURPOSE - REMOVE
       loginCookieSet(email);
-      console.log("Login successful:", email, "Role:", userData.role);
 
       if (userData.role === "admin") navigate("/admin-dashboard");
       else if (userData.role === "charity staff") navigate("/staff-dashboard");
       else if (userData.role === "local leader") navigate("/leader-dashboard");
-      else setErrorMessage("Your account role is not recognized. Please contact support.");
+      else
+        setErrorMessage(
+          "Your account role is not recognized. Please contact support."
+        );
 
       startInactivityTimer();
     } catch (error) {
       setErrorMessage(
-        error.message === "User not found" || error.message === "Invalid password"
+        error.message === "User not found" ||
+          error.message === "Invalid password"
           ? "Invalid email or password. Please try again."
           : "An unexpected error occurred. Please try again."
       );
@@ -233,13 +245,13 @@ function Login() {
               required
             />
             <Button
-            variant="text"
-            fullWidth
-            sx={{ mt: 2, color: "white", textDecoration: "underline" }}
-            onClick={() => navigate("/reset-password")}
-          >
-            Forgot Password?
-          </Button>
+              variant="text"
+              fullWidth
+              sx={{ mt: 2, color: "white", textDecoration: "underline" }}
+              onClick={() => navigate("/reset-password")}
+            >
+              Forgot Password?
+            </Button>
             <Button
               type="submit"
               variant="contained"
