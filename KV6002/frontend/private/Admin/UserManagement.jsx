@@ -5,11 +5,10 @@ import {
   Modal,
   TextField,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
+  Grid,
+  Snackbar,
+  Alert,
+  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -18,30 +17,35 @@ import {
   TableRow,
   Paper,
   IconButton,
+  Select,
   FormControl,
   InputLabel,
-  Select,
-  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import { Delete, Edit } from "@mui/icons-material";
 import { collection, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
 
+const phoneExtensions = [
+  { label: "Malaysia (+60)", value: "60" },
+  { label: "UK (+44)", value: "44" },
+  { label: "USA (+1)", value: "1" },
+  { label: "India (+91)", value: "91" },
+];
+
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [editUser, setEditUser] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [sortOrder, setSortOrder] = useState("Ascending");
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  useEffect(() => {
-    sortUsers();
-  }, [users, sortOrder]);
+  const [toastOpen, setToastOpen] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const fetchUsers = async () => {
     try {
@@ -50,23 +54,41 @@ const UserManagement = () => {
       const userData = userDocs.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setUsers(userData);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      setError("Failed to fetch users.");
+      setToastOpen(true);
     }
   };
 
-  const sortUsers = () => {
-    const sortedUsers = [...users];
-    if (sortOrder === "Ascending") {
-      sortedUsers.sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""));
-    } else {
-      sortedUsers.sort((a, b) => (b.fullName || "").localeCompare(a.fullName || ""));
-    }
-    setUsers(sortedUsers);
-  };
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const handleEdit = (user) => {
-    setEditUser(user);
+    setEditUser({
+      ...user,
+      phoneExtension: user.phone?.slice(0, 2),
+      phone: user.phone?.slice(2),
+    });
     setModalOpen(true);
+  };
+
+  const handleDelete = (user) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const userDoc = doc(db, "Users", userToDelete.id);
+      await deleteDoc(userDoc);
+      setSuccess("User deleted successfully!");
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      fetchUsers();
+    } catch {
+      setError("Failed to delete user.");
+      setToastOpen(true);
+    }
   };
 
   const handleCloseModal = () => {
@@ -74,108 +96,40 @@ const UserManagement = () => {
     setModalOpen(false);
   };
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-
-    // Required fields validation
-    const requiredFields = ["fullName", "phone", "gender", "dateOfBirth", "address", "employmentStatus"];
-    for (let field of requiredFields) {
-      if (!editUser?.[field]?.trim()) {
-        alert(`The field "${field}" cannot be empty.`);
-        return;
-      }
-    }
-
-    // Email validation (optional but must be valid if provided)
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (editUser.email && !emailRegex.test(editUser.email)) {
-      alert("Please enter a valid email address.");
-      return;
-    }
-
-    // Phone validation (must include a valid country code and length)
-    const phoneRegex = /^\+(60\d{9}|44\d{10}|1\d{10}|91\d{10})$/; // Malaysia (+60), UK (+44), US (+1), India (+91)
-    if (!phoneRegex.test(editUser.phone)) {
-      alert(
-        "Please enter a valid phone number with the correct country code (e.g., +60, +44, +1, +91) followed by the correct number of digits."
-      );
-      return;
-    }
-
-    // Ensure phone number is unique
-    const isDuplicatePhone = users.some(
-      (user) => user.phone === editUser.phone && user.id !== editUser.id
-    );
-    if (isDuplicatePhone) {
-      alert("Phone number already exists. Please use a unique phone number.");
-      return;
-    }
-
-    // Salary validation (must be a numeric value)
-    if (editUser.employmentStatus === "Employed" && isNaN(editUser.monthlySalary)) {
-      alert("Monthly Salary must be a numeric value.");
-      return;
-    }
-
-    try {
-      const userDoc = doc(db, "Users", editUser.id);
-      await updateDoc(userDoc, editUser);
-      fetchUsers();
-      handleCloseModal();
-    } catch (error) {
-      console.error("Error updating user:", error);
-    }
-  };
-
-  const handleOpenDeleteDialog = (user) => {
-    setUserToDelete(user);
-    setDialogOpen(true);
-  };
-
-  const handleCloseDeleteDialog = () => {
-    setUserToDelete(null);
-    setDialogOpen(false);
-  };
-
-  const handleDeleteUser = async () => {
-    if (userToDelete) {
-      try {
-        await deleteDoc(doc(db, "Users", userToDelete.id));
-        fetchUsers();
-      } catch (error) {
-        console.error("Error deleting user:", error);
-      } finally {
-        handleCloseDeleteDialog();
-      }
-    }
-  };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setEditUser({ ...editUser, [name]: value });
   };
 
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setToastOpen(false);
+
+    const fullPhoneNumber = editUser.phoneExtension + editUser.phone;
+    const updatedUser = { ...editUser, phone: fullPhoneNumber };
+
+    try {
+      const userDoc = doc(db, "Users", updatedUser.id);
+      await updateDoc(userDoc, updatedUser);
+      setSuccess("User updated successfully!");
+      fetchUsers();
+      handleCloseModal();
+    } catch {
+      setError("Failed to update user.");
+      setToastOpen(true);
+    }
+  };
+
   return (
-    <Box sx={{ backgroundColor: "#f8e8e8", padding: "2rem", borderRadius: "8px" }}>
+    <Box sx={{ padding: "2rem", backgroundColor: "#f8e8e8", borderRadius: "8px" }}>
       <Typography variant="h5" sx={{ color: "#7B3F3F", mb: 2 }}>
         Manage Users
       </Typography>
 
-      <Box sx={{ mb: 3, display: "flex", justifyContent: "flex-end" }}>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel id="sort-order-label">Sort by Name</InputLabel>
-          <Select
-            labelId="sort-order-label"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-          >
-            <MenuItem value="Ascending">Ascending</MenuItem>
-            <MenuItem value="Descending">Descending</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
-
-      <TableContainer component={Paper} sx={{ mb: 3 }}>
+      {/* Users Table */}
+      <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
@@ -193,27 +147,19 @@ const UserManagement = () => {
           <TableBody>
             {users.map((user) => (
               <TableRow key={user.id}>
-                <TableCell>{user.fullName}</TableCell>
+                <TableCell>{user.fullName || "N/A"}</TableCell>
                 <TableCell>{user.email || "N/A"}</TableCell>
                 <TableCell>{user.phone || "N/A"}</TableCell>
                 <TableCell>{user.gender || "N/A"}</TableCell>
-                <TableCell>
-                  {user.dateOfBirth
-                    ? new Date(user.dateOfBirth).toLocaleDateString()
-                    : "N/A"}
-                </TableCell>
+                <TableCell>{user.dateOfBirth || "N/A"}</TableCell>
                 <TableCell>{user.address || "N/A"}</TableCell>
                 <TableCell>{user.employmentStatus || "N/A"}</TableCell>
-                <TableCell>
-                  {user.employmentStatus === "Employed"
-                    ? `RM ${user.monthlySalary}`
-                    : "N/A"}
-                </TableCell>
+                <TableCell>{user.monthlySalary || "N/A"}</TableCell>
                 <TableCell>
                   <IconButton color="primary" onClick={() => handleEdit(user)}>
                     <Edit />
                   </IconButton>
-                  <IconButton color="error" onClick={() => handleOpenDeleteDialog(user)}>
+                  <IconButton color="error" onClick={() => handleDelete(user)}>
                     <Delete />
                   </IconButton>
                 </TableCell>
@@ -223,6 +169,7 @@ const UserManagement = () => {
         </Table>
       </TableContainer>
 
+      {/* Edit Modal */}
       <Modal open={modalOpen} onClose={handleCloseModal}>
         <Box
           component="form"
@@ -239,104 +186,45 @@ const UserManagement = () => {
             width: "400px",
           }}
         >
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Edit User
-          </Typography>
-          <TextField
-            label="Full Name"
-            name="fullName"
-            value={editUser?.fullName || ""}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Email"
-            name="email"
-            value={editUser?.email || ""}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-            helperText="Optional, but must be valid if provided"
-          />
-          <TextField
-            label="Phone"
-            name="phone"
-            value={editUser?.phone || ""}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-            helperText="Include a valid country code (e.g., +60, +44, +1, +91)"
-          />
-          <TextField
-            label="Date of Birth"
-            name="dateOfBirth"
-            type="date"
-            value={editUser?.dateOfBirth || ""}
-            onChange={handleInputChange}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Address"
-            name="address"
-            value={editUser?.address || ""}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Employment Status"
-            name="employmentStatus"
-            value={editUser?.employmentStatus || ""}
-            onChange={handleInputChange}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-          {editUser?.employmentStatus === "Employed" && (
-            <TextField
-              label="Monthly Salary (RM)"
-              name="monthlySalary"
-              value={editUser?.monthlySalary || ""}
-              onChange={(e) => {
-                if (!isNaN(e.target.value) || e.target.value === "") {
-                  handleInputChange(e);
-                }
-              }}
-              fullWidth
-              sx={{ mb: 2 }}
-              helperText="Only numeric values are allowed."
-            />
+          <Typography variant="h6" sx={{ mb: 2 }}>Edit User</Typography>
+          <TextField label="Full Name" name="fullName" value={editUser?.fullName || ""} onChange={handleInputChange} fullWidth required sx={{ mb: 2 }} />
+          <TextField label="Email" name="email" value={editUser?.email || ""} onChange={handleInputChange} fullWidth sx={{ mb: 2 }} />
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={4}>
+              <FormControl fullWidth required>
+                <InputLabel>Ext.</InputLabel>
+                <Select name="phoneExtension" value={editUser?.phoneExtension || ""} onChange={handleInputChange}>
+                  {phoneExtensions.map((ext) => (
+                    <MenuItem key={ext.value} value={ext.value}>{ext.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={8}>
+              <TextField label="Phone Number" name="phone" value={editUser?.phone || ""} onChange={handleInputChange} fullWidth required />
+            </Grid>
+          </Grid>
+          {editUser?.employmentStatus && editUser?.employmentStatus !== "N/A" && (
+            <>
+              <TextField label="Gender" name="gender" value={editUser?.gender || ""} onChange={handleInputChange} fullWidth required sx={{ mb: 2 }} />
+              <TextField label="Date of Birth" name="dateOfBirth" type="date" value={editUser?.dateOfBirth || ""} onChange={handleInputChange} fullWidth InputLabelProps={{ shrink: true }} sx={{ mb: 2 }} />
+              <TextField label="Address" name="address" value={editUser?.address || ""} onChange={handleInputChange} fullWidth required sx={{ mb: 2 }} />
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Employment Status</InputLabel>
+                <Select name="employmentStatus" value={editUser?.employmentStatus || ""} onChange={handleInputChange}>
+                  <MenuItem value="Employed">Employed</MenuItem>
+                  <MenuItem value="Unemployed">Unemployed</MenuItem>
+                </Select>
+              </FormControl>
+              {editUser?.employmentStatus === "Employed" && (
+                <TextField label="Monthly Salary" name="monthlySalary" value={editUser?.monthlySalary || ""} onChange={handleInputChange} fullWidth required sx={{ mb: 2 }} />
+              )}
+            </>
           )}
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
-            <Button variant="outlined" onClick={handleCloseModal} color="secondary">
-              Cancel
-            </Button>
-            <Button type="submit" variant="contained" color="primary">
-              Save
-            </Button>
-          </Box>
+          <Button type="submit" variant="contained" color="primary" sx={{ mr: 2 }}>Save</Button>
+          <Button onClick={handleCloseModal} variant="outlined" color="secondary">Cancel</Button>
         </Box>
       </Modal>
-
-      <Dialog open={dialogOpen} onClose={handleCloseDeleteDialog}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete the user{" "}
-            <strong>{userToDelete?.fullName}</strong>? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog} color="secondary">
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteUser} color="error" autoFocus>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

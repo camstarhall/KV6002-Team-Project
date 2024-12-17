@@ -91,8 +91,8 @@ return;
 }
 if (event.isRestricted) {
 const age = calculateAge(formData.dateOfBirth);
-if (age < 30 || age > 65) {
-setError("Eligible participants must be between 30 and 65 years old.");
+if (age < 30 || age > 60) {
+setError("Eligible participants must be between 30 and 60 years old.");
 setToastOpen(true);
 return;
 }
